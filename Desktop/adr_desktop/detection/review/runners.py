@@ -13,9 +13,8 @@ import threading
 import time
 from pathlib import Path
 
-from .config import command_prefix
-from .review_quota import claude_rate_event, codex_quota, number
-from .storage.files import canonical
+from ...storage.files import canonical
+from .quota import claude_rate_event, codex_quota, number
 
 MAX_LINE = 1024 * 1024
 MAX_OUTPUT = 4 * 1024 * 1024
@@ -137,9 +136,12 @@ def child_environment():
 
 
 class JsonProcess:
-    """Drain both pipes, bound memory, and only terminate our own process group."""
+    """Drain both pipes, bound memory, and only terminate our own process group.
 
-    def __init__(self, argv, cwd, cancel, seconds=120, *, document=False):
+    ``launcher`` is the argv that starts ADR's command line, whose ``review-supervise``
+    subcommand stops the CLI when this process goes away."""
+
+    def __init__(self, argv, cwd, cancel, seconds=120, *, launcher, document=False):
         self.cancel = cancel
         self.deadline = time.monotonic() + seconds
         self.events = queue.Queue(maxsize=256)
@@ -151,7 +153,7 @@ class JsonProcess:
         if os.name != "nt":
             lifetime_read, self.lifetime = os.pipe()
             argv = [
-                *command_prefix(),
+                *launcher,
                 "review-supervise",
                 "--lifetime-fd",
                 str(lifetime_read),
@@ -361,13 +363,13 @@ def usage_tokens(usage, provider):
 
 
 class CodexConnection:
-    def __init__(self, command, cwd, cancel, seconds=120, *, restricted=False):
+    def __init__(self, command, cwd, cancel, seconds=120, *, launcher, restricted=False):
         arguments = [*command, "app-server", "--listen", "stdio://"]
         if restricted:
             arguments += ["-c", "mcp_servers={}", "-c", 'web_search="disabled"']
             for feature in DISABLED_FEATURES:
                 arguments += ["-c", f"features.{feature}=false"]
-        self.pipe = JsonProcess(arguments, cwd, cancel, seconds)
+        self.pipe = JsonProcess(arguments, cwd, cancel, seconds, launcher=launcher)
         self.serial = 0
         self.notices = []
         try:
@@ -416,8 +418,9 @@ class CodexConnection:
 class LocalReviewDriver:
     """Commands may be injected by tests; the owner UI never accepts shell argv."""
 
-    def __init__(self, commands=None):
+    def __init__(self, commands=None, *, launcher):
         self.commands = commands or {}
+        self.launcher = launcher
 
     def command(self, provider):
         return self.commands.get(provider) or [executable(provider)]
@@ -439,6 +442,7 @@ class LocalReviewDriver:
                     cwd,
                     cancel,
                     12,
+                    launcher=self.launcher,
                     document=True,
                 ) as pipe:
                     data = pipe.read()
@@ -453,7 +457,7 @@ class LocalReviewDriver:
                     }
             connection = None
             try:
-                connection = CodexConnection(self.command(provider), cwd, cancel, 15)
+                connection = CodexConnection(self.command(provider), cwd, cancel, 15, launcher=self.launcher)
                 data = connection.call("account/read", {"refreshToken": False}).get("account") or {}
                 if not data:
                     raise ReviewError("cli_failed")
@@ -506,7 +510,7 @@ class LocalReviewDriver:
         if settings["model"]:
             arguments += ["--model", settings["model"]]
         messages = {}
-        with JsonProcess(arguments, cwd, cancel, settings["max_seconds"]) as pipe:
+        with JsonProcess(arguments, cwd, cancel, settings["max_seconds"], launcher=self.launcher) as pipe:
             pipe.text(prompt)
             for _ in range(10000):
                 event = pipe.read()
@@ -553,6 +557,7 @@ class LocalReviewDriver:
                 cwd,
                 cancel,
                 settings["max_seconds"],
+                launcher=self.launcher,
                 restricted=True,
             )
             effective = connection.call("config/read", {"includeLayers": False}).get("config") or {}

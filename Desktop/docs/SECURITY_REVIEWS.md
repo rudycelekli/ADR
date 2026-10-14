@@ -139,7 +139,7 @@ commands, external reports or PRs are created by the reviewer.
 ```sh
 PYTHONPATH=.:../Sensor uv run pytest -q \
   tests/test_review_process.py tests/test_review_quota.py tests/test_security_reviews.py \
-  tests/test_review_usage.py
+  tests/test_review_usage.py tests/test_detection_review.py
 PYTHONPATH=.:../Sensor uv run python scripts/reviews_ui_qa.py
 ```
 

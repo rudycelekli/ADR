@@ -36,8 +36,11 @@ def build_identity(build_number, source_revision):
 
 def required_python_modules():
     required = {
-        "adr_desktop.api", "adr_desktop.review_supervisor", "adr_desktop.security_reviews",
-        "adr_desktop.detection.contracts", "adr_desktop.detection.operation",
+        "adr_desktop.api", "adr_desktop.security_reviews",
+        "adr_desktop.detection.contracts", "adr_desktop.detection.operation", "adr_desktop.detection.ports",
+        "adr_desktop.detection.review.coordinator", "adr_desktop.detection.review.quota",
+        "adr_desktop.detection.review.runners", "adr_desktop.detection.review.supervisor",
+        "adr_desktop.detection.review.usage",
         "adr_desktop.integrations.agents",
         "adr_desktop.storage.database", "adr_desktop.storage.files", "adr_desktop.storage.ids",
         "adr_discovery.api", "adr_discovery.pipeline", "adr_discovery.coverage.report",

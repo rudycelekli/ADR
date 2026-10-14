@@ -16,7 +16,8 @@ from qa_support import browser_evidence, isolated_agent_profile
 from ui_qa import SyntheticNative, SyntheticPluginDriver, seed
 
 from adr_desktop.api import create_app
-from adr_desktop.review_process import LocalReviewDriver
+from adr_desktop.config import command_prefix
+from adr_desktop.detection.review.runners import LocalReviewDriver
 from adr_desktop.runtime import Runtime
 from adr_desktop.storage.files import prepare_state_dir
 
@@ -78,7 +79,8 @@ def main():
                 {
                     "claude": [sys.executable, str(FIXTURE), "claude", "finding"],
                     "codex": [sys.executable, str(FIXTURE), "codex", "success"],
-                }
+                },
+                launcher=command_prefix(),
             )
             seed(runtime)
             listener = socket.socket()
