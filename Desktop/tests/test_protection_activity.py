@@ -5,9 +5,9 @@ import sys
 
 import pytest
 
-from adr_desktop.config import canonical, prepare_state_dir
 from adr_desktop.hooks import run_hook
 from adr_desktop.policy import Decision
+from adr_desktop.storage.files import canonical, prepare_state_dir
 from adr_desktop.store import SCHEMA, Store
 
 

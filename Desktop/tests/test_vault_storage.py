@@ -1,8 +1,8 @@
 import pytest
 from conftest import grant_token
 
-from adr_desktop.config import read_private_json
 from adr_desktop.native import NativeTimedOut, NativeUnavailable
+from adr_desktop.storage.files import read_private_json
 
 
 def saved(runtime):

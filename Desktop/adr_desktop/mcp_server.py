@@ -7,9 +7,9 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 from . import __version__
-from .config import read_private_json, strict_json
 from .credential_activity import RUN_ID
 from .local_client import request
+from .storage.files import read_private_json, strict_json
 
 ID = {"type": "string", "pattern": "^[a-f0-9]{32}$"}
 

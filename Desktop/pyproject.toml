@@ -110,3 +110,9 @@ ignore_imports = [
 ]
 # Storage arrives with ticket 03; until then nothing matches the exception.
 unmatched_ignore_imports_alerting = "none"
+
+[[tool.importlinter.contracts]]
+name = "Storage imports nothing else from Desktop"
+type = "forbidden"
+source_modules = ["adr_desktop.storage"]
+forbidden_modules = ["adr_desktop.*"]

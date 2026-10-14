@@ -8,7 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .config import atomic_json, command_prefix, read_private_json, strict_json
+from .config import command_prefix
+from .storage.files import atomic_json, read_private_json, strict_json
 
 LIMIT = 256 * 1024
 

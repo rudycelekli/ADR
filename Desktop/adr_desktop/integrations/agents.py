@@ -4,7 +4,7 @@ import hashlib
 import os
 from pathlib import Path
 
-from ..config import read_private_json
+from ..storage.files import read_private_json
 
 HARNESS_LABELS = {
     "claude": "Claude Code",

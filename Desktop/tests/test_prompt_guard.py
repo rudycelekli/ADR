@@ -7,10 +7,10 @@ from types import SimpleNamespace
 import pytest
 
 from adr_desktop import agent_plugins, hooks, prompt_guard
-from adr_desktop.config import atomic_json
 from adr_desktop.environment_vault import PROMPT_MESSAGE
 from adr_desktop.guard import install_guard, publish_target
 from adr_desktop.integrations import agents
+from adr_desktop.storage.files import atomic_json
 
 
 @pytest.mark.parametrize("harness", ["claude", "codex"])

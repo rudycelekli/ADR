@@ -4,9 +4,9 @@ import json
 import sys
 from pathlib import Path
 
-from .config import read_private_json, strict_json
 from .environment_vault import PROMPT_LIMIT, PROMPT_MESSAGE, UNAVAILABLE_MESSAGE
 from .local_client import request
+from .storage.files import read_private_json, strict_json
 
 
 def run_prompt_hook(state_dir: Path, harness: str, guard_protocol=False):

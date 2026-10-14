@@ -9,11 +9,11 @@ from types import SimpleNamespace
 import pytest
 from conftest import grant_token, sample_session
 
-from adr_desktop.config import canonical
 from adr_desktop.credential_activity import recent_runs, record_session, result_run_ids
 from adr_desktop.hooks import run_hook
 from adr_desktop.local_client import LocalUnavailable
 from adr_desktop.mcp_server import serve
+from adr_desktop.storage.files import canonical
 from adr_desktop.store import Store
 
 RUN = "b" * 32

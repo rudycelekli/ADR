@@ -3,8 +3,8 @@ from unittest.mock import patch
 
 import pytest
 
-from adr_desktop.config import atomic_json
 from adr_desktop.review_usage import connect, connection_status, report_usage
+from adr_desktop.storage.files import atomic_json
 
 
 def test_connect_and_restore_preserve_existing_status_and_other_settings(runtime, monkeypatch, tmp_path):

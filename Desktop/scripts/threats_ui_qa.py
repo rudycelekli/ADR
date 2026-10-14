@@ -21,9 +21,10 @@ from playwright.sync_api import expect, sync_playwright
 from qa_support import browser_evidence, isolated_agent_profile
 
 from adr_desktop.api import create_app
-from adr_desktop.config import prepare_state_dir, utcnow
+from adr_desktop.config import utcnow
 from adr_desktop.protection import evaluate_operation
 from adr_desktop.runtime import Runtime
+from adr_desktop.storage.files import prepare_state_dir
 
 SKILL_BODY = "---\nname: Synthetic threat QA skill\n---\nHarmless browser-test fixture.\n"
 SKILL_HASH = hashlib.sha256(SKILL_BODY.encode()).hexdigest()

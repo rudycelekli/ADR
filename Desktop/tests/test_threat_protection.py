@@ -8,9 +8,9 @@ from pathlib import Path
 import pytest
 from conftest import grant_token
 
-from adr_desktop.config import canonical, read_private_json
 from adr_desktop.policy import Decision
 from adr_desktop.protection import evaluate_operation
+from adr_desktop.storage.files import canonical, read_private_json
 from adr_desktop.threat_feed import BUNDLED_FEED_ID, compile_generation
 from adr_desktop.threat_protection import ThreatStateConflict, initialize_threats
 

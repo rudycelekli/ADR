@@ -9,8 +9,8 @@ from pathlib import Path
 import pytest
 from conftest import sample_session
 
-from adr_desktop.config import canonical, prepare_state_dir
 from adr_desktop.conversation_view import is_setup_message, recover_codex_metadata, session_title
+from adr_desktop.storage.files import canonical, prepare_state_dir
 from adr_desktop.store import Store
 
 

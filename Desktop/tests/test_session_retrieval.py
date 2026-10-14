@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 from conftest import grant_token, sample_session
 
-from adr_desktop.config import canonical
+from adr_desktop.storage.files import canonical
 from adr_desktop.store import RETRIEVAL_INDEX_VERSION, Store
 
 

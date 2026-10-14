@@ -5,7 +5,7 @@ import re
 import stat
 from pathlib import Path
 
-from .config import MAX_JSON_BYTES, canonical
+from .storage.files import MAX_JSON_BYTES, canonical
 
 PATTERNS = (
     ("GitHub token", re.compile(rb"\b(?:gh[pousr]_[A-Za-z0-9]{36,255}|github_pat_[A-Za-z0-9_]{60,255})\b")),

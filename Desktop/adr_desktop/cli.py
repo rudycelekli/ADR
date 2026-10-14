@@ -9,7 +9,8 @@ import webbrowser
 from pathlib import Path
 
 from . import __version__
-from .config import InstanceLock, atomic_json, default_state_dir, prepare_state_dir, read_private_json
+from .config import InstanceLock
+from .storage.files import atomic_json, default_state_dir, prepare_state_dir, read_private_json
 
 
 def serve(args):

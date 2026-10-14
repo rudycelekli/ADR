@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from adr_desktop.config import atomic_json
 from adr_desktop.mcp_trust import trusted_tool
+from adr_desktop.storage.files import atomic_json
 
 
 @pytest.fixture

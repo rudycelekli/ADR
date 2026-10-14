@@ -7,10 +7,11 @@ import threading
 import time
 from urllib.parse import urlsplit
 
-from .config import canonical, utcnow
+from .config import utcnow
 from .local_client import SAFE_ERRORS
 from .native import NativeUnavailable
-from .store import new_id
+from .storage.files import canonical
+from .storage.ids import new_id
 
 PATH_RE = re.compile(r"/[A-Za-z0-9/_@.:\-~]*")
 HEADER_RE = re.compile(r"[A-Za-z][A-Za-z0-9-]{0,63}")

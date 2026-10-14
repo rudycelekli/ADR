@@ -119,7 +119,7 @@ def event_fields(event: dict, harness: str) -> tuple[str, dict, str, str]:
         arguments = event.get("toolArgs")
         session = event.get("sessionId", "")
         if isinstance(arguments, str):
-            from .config import strict_json
+            from .storage.files import strict_json
 
             arguments = strict_json(arguments, max_bytes=256 * 1024)
     if not isinstance(tool, str) or not tool or not isinstance(arguments, dict):

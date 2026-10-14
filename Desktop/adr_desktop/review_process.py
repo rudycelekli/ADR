@@ -13,8 +13,9 @@ import threading
 import time
 from pathlib import Path
 
-from .config import canonical, command_prefix
+from .config import command_prefix
 from .review_quota import claude_rate_event, codex_quota, number
+from .storage.files import canonical
 
 MAX_LINE = 1024 * 1024
 MAX_OUTPUT = 4 * 1024 * 1024

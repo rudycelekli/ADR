@@ -10,7 +10,8 @@ import tempfile
 import threading
 from pathlib import Path
 
-from .config import MAX_JSON_BYTES, atomic_json, command_prefix, strict_json, utcnow
+from .config import command_prefix, utcnow
+from .storage.files import MAX_JSON_BYTES, atomic_json, strict_json
 
 SOURCE_LABELS = {
     "claude": "Claude Code",
