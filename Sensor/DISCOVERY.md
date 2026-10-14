@@ -5,12 +5,14 @@ desktop applications, agents, MCP servers, skills, plugins, and related
 programmable surfaces. It records the evidence behind each finding and reports
 coverage gaps so an incomplete scan is not mistaken for a clean machine.
 
-The collector runs on Python 3.11+ and has no runtime dependencies outside the
-standard library.
+Discovery ships in the `adr-sensor` package as its own import package,
+`adr_discovery`, with the `adr-discovery` command. It runs on Python 3.11+,
+imports only the standard library, and never imports `adr_sensor`.
+Programs that embed it import only `adr_discovery.api`.
 
 ## Quick start
 
-Run a scan from this directory with [`uv`](https://docs.astral.sh/uv/):
+Run a scan from `Sensor/` with [`uv`](https://docs.astral.sh/uv/):
 
 ```sh
 uv run adr-discovery --dry-run --json
@@ -70,15 +72,16 @@ Install the development dependencies and run the checks:
 
 ```sh
 uv sync --extra dev
-uv run pytest -q
-uv run ruff check .
+uv run pytest -q tests/discovery
+uv run ruff check adr_discovery tests/discovery
 ```
 
+Ruff reads Discovery's own settings from `adr_discovery/ruff.toml`.
 The test suite has two layers:
 
-- `adr_discovery/tests_unit/` verifies modules, contracts, security boundaries,
-  and the composed pipeline.
-- `tests/` is the black-box endpoint harness used to compare known installations
+- `tests/discovery/unit/` verifies modules, contracts, security boundaries,
+  the composed pipeline, and the public API.
+- `tests/discovery/` is the black-box endpoint harness used to compare known installations
   with the collector's reported snapshot.
 
 ## Project layout
@@ -96,15 +99,17 @@ adr_discovery/
   reporter/      snapshots and deltas
   resolver/      observation merging and confidence
   world/         bounded, platform-specific machine access
+  api.py         public interface for programs that embed Discovery
   cli.py         command-line interface
   pipeline.py    pipeline composition
-tests/           black-box endpoint test harness
+tests/discovery/ black-box endpoint test harness
+  unit/          module, pipeline and API tests
 ```
 
 For the architecture, data model, security boundaries, current limitations,
 and implementation details, see the [package documentation](adr_discovery/README.md).
 For end-to-end validation and VM provisioning, see the
-[test harness documentation](tests/README.md).
+[test harness documentation](tests/discovery/README.md).
 
 ## License
 

@@ -1,4 +1,4 @@
-# Category 3 of Discovery/tests/README.md: the 19 programmable-surface entries.
+# Category 3 of Sensor/tests/discovery/README.md: the 19 programmable-surface entries.
 #
 # What an installed agent has been *told* to do. Created as real files, because
 # every one of these is discovered by reading a path that must exist exactly

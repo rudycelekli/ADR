@@ -10,8 +10,7 @@ requires-python = ">=3.11"
 license = "Apache-2.0"
 dependencies = [
     "adr-protection==0.1.0",
-    "adr-sensor==1.0.0",
-    "adr-discovery==0.2.0",
+    "adr-sensor==1.1.0",
     "fastapi>=0.115,<1",
     "uvicorn>=0.30,<1",
 ]
@@ -28,7 +27,6 @@ adr-desktop = "adr_desktop.cli:main"
 [tool.uv.sources]
 adr-protection = { path = "../Protection", editable = true }
 adr-sensor = { path = "../Sensor", editable = true }
-adr-discovery = { path = "../Discovery", editable = true }
 
 [tool.setuptools.packages.find]
 include = ["adr_desktop*"]
@@ -62,6 +60,14 @@ forbidden_modules = ["adr_desktop"]
 name = "Sensor, Discovery and Protection do not import each other"
 type = "independence"
 modules = ["adr_sensor", "adr_discovery", "adr_protection"]
+
+[[tool.importlinter.contracts]]
+name = "Desktop uses Sensor and Discovery only through their api modules"
+type = "forbidden"
+source_modules = ["adr_desktop"]
+forbidden_modules = ["adr_sensor", "adr_discovery"]
+ignore_imports = ["adr_desktop.** -> adr_sensor.api", "adr_desktop.** -> adr_discovery.api"]
+allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
 name = "The hook does not import the server, runtime, API, review code or Discovery"

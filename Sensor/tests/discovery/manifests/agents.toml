@@ -1,4 +1,4 @@
-# Category 4 of Discovery/tests/README.md: the 12 agent entries.
+# Category 4 of Sensor/tests/discovery/README.md: the 12 agent entries.
 #
 # Agents are distinguished from tools by *liveness*, so each is left in the
 # required state immediately before the second scan - which is why the runner

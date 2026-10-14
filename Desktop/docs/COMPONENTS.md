@@ -22,7 +22,7 @@ flowchart LR
 | Area | Reusable component / contract | Desktop or native responsibility |
 | --- | --- | --- |
 | Activity capture | [Sensor](../../Sensor/): normalized agent events | The [collector](../adr_desktop/collector.py) schedules one Sensor pass; the host retains original snapshots and provides scoped search and presentation. |
-| AI inventory | [Discovery](../../Discovery/): snapshot and coverage records | Request a bounded scan, persist results, paginate them, [explain access limits](../adr_desktop/access_status.py). Inventory is not prevention. |
+| AI inventory | [Discovery](../../Sensor/DISCOVERY.md): snapshot and coverage records through `adr_discovery.api` | Request a bounded scan, persist results, paginate them, [explain access limits](../adr_desktop/access_status.py). Inventory is not prevention. |
 | Artifact intelligence | [Protection](../../Protection/): offline artifact API v1 | [Artifact coordination](../adr_desktop/threat_protection.py) supplies the reviewed baseline/custom feed, authorizes imports, publishes policy, and stores findings. The host establishes identity and enforces decisions. |
 | File protection | File-policy extraction is tracked separately | [Policy](../adr_desktop/policy.py) and [operation evaluation](../adr_desktop/protection.py) currently live in Desktop. Harness adapters, trust resolution, approvals, guarded execution, and closed deny reasons stay host responsibilities. |
 | Security reviews | Review-service extraction is tracked separately | The [review coordinator](../adr_desktop/security_reviews.py) and [CLI driver](../adr_desktop/review_process.py) manage consent, budgets, storage, credential checks, isolation, and findings. These reviews are not the full `Detection/` benchmark pipeline. |

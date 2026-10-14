@@ -1,6 +1,6 @@
 """End-to-end fidelity harness for ADR Discovery.
 
-Implements the method in ``Discovery/tests/README.md``: install a known set of
+Implements the method in ``Sensor/tests/discovery/README.md``: install a known set of
 AI tools on a clean VM, scan, and score what the collector reported against
 what was actually installed.
 

@@ -400,6 +400,8 @@ layouts. Use a separate build output to keep a running app unchanged.
 The extracted [Protection library](../Protection/) has its own tests and wheel
 check. Desktop imports it in-process and retains its existing enforcement,
 native vault, storage, and authorization boundaries.
+Desktop uses [Sensor](../Sensor/) and the Discovery package inside it only through
+`adr_sensor.api` and `adr_discovery.api`; `lint-imports` enforces this.
 For interactive MCP/browser testing and repeatable improvement passes, see
 [the community UI lab](docs/COMMUNITY_QA.md).
 

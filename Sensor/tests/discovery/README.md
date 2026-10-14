@@ -27,7 +27,7 @@ have executable recipes.
 
 Linux and macOS guest drivers exist, but neither has automated golden-snapshot
 restoration wired up. There is no Windows guest driver yet, and the integrated
-`tests.cli run` command supports only `--dry`. See [HARNESS.md](HARNESS.md) for
+`tests.discovery.cli run` command supports only `--dry`. See [HARNESS.md](HARNESS.md) for
 the current recipe, driver, and measured-run status.
 
 ## Target test environment
@@ -381,18 +381,18 @@ Every FP and FN is listed individually with the evidence the collector recorded,
 
 ## Running it
 
-The implemented local workflows are:
+The implemented local workflows, from `Sensor/`, are:
 
 ```sh
-python3 -m tests.cli check
-python3 -m tests.cli synthesize runs/local --os linux
-python3 -m tests.cli score runs/local --html runs/local/score.html
-python3 -m tests.cli run --os linux --dry
+python3 -m tests.discovery.cli check
+python3 -m tests.discovery.cli synthesize runs/local --os linux
+python3 -m tests.discovery.cli score runs/local --html runs/local/score.html
+python3 -m tests.discovery.cli run --os linux --dry
 ```
 
 The dry run records installation commands without touching a guest. Individual
 Linux and macOS drivers can be used by the bootstrap tooling, but a complete
-restore-install-scan-score workflow is not yet wired into `tests.cli run`.
+restore-install-scan-score workflow is not yet wired into `tests.discovery.cli run`.
 Current driver-specific instructions and limitations are in
 [HARNESS.md](HARNESS.md).
 
@@ -405,8 +405,8 @@ not as part of per-commit CI.
 
 This document describes the end-to-end fidelity measurement. The fast,
 per-commit suite is a different instrument: collector module and pipeline tests
-live under `adr_discovery/tests_unit/`, while harness validation and scoring
-tests live directly under `tests/`. Run both with `pytest -q`.
+live under `tests/discovery/unit/`, while harness validation and scoring
+tests live directly under `tests/discovery/`. Run both with `pytest -q tests/discovery`.
 
 The two are complementary, and neither replaces the other:
 

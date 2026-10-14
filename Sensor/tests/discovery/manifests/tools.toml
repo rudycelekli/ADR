@@ -1,4 +1,4 @@
-# Category 1 of Discovery/tests/README.md: the 50 AI-tool entries.
+# Category 1 of Sensor/tests/discovery/README.md: the 50 AI-tool entries.
 #
 # Versions are pinned because an unpinned install makes the expected `version`
 # unscoreable - the correct answer becomes whatever the registry served that

@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "adr-sensor"
-version = "1.0.0"
-description = "ADR Sensor - Agentic Detection & Response: Security observability for AI coding agents"
+version = "1.1.0"
+description = "ADR Sensor - Agentic Detection & Response: Security observability and AI tool inventory for AI coding agents"
 readme = "README.md"
 license = "Apache-2.0"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 authors = [
     { name = "ADR Project Contributors" },
 ]
@@ -21,8 +21,6 @@ classifiers = [
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -49,6 +47,7 @@ otel = [
 
 [project.scripts]
 adr-sensor = "adr_sensor.cli:main"
+adr-discovery = "adr_discovery.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/uber/ADR"
@@ -57,11 +56,14 @@ Repository = "https://github.com/uber/ADR"
 Issues = "https://github.com/uber/ADR/issues"
 
 [tool.setuptools.packages.find]
-include = ["adr_sensor*"]
+include = ["adr_sensor*", "adr_discovery*"]
+
+[tool.setuptools.package-data]
+adr_discovery = ["catalog/catalog.json"]
 
 [tool.ruff]
 line-length = 120
-target-version = "py39"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]

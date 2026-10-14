@@ -1,4 +1,4 @@
-# Category 2 of Discovery/tests/README.md: the 29 MCP entries.
+# Category 2 of Sensor/tests/discovery/README.md: the 29 MCP entries.
 #
 # MCP is the only purely *declared* surface - a server exists because a config
 # file says so, whether or not it has ever run. These entries need no installer

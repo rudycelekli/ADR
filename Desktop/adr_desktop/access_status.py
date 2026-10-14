@@ -7,8 +7,7 @@ grant, and an error-free partial scan is not proof of Full Disk Access.
 
 from __future__ import annotations
 
-from adr_discovery.coverage.report import summarize_coverage
-from adr_discovery.reporter.snapshot import from_dict
+from adr_discovery.api import from_dict, summarize_coverage
 
 
 def inventory_access_status(

@@ -1,3 +1,4 @@
+import ast
 import tomllib
 from pathlib import Path
 
@@ -47,3 +48,18 @@ def test_bundle_validation_rejects_a_missing_runtime_dependency():
     listing = "\n".join(required_python_modules() - {"tabulate"})
     with pytest.raises(ValueError, match="tabulate"):
         validate_python_modules(listing)
+
+
+def test_bundle_requires_every_sensor_and_discovery_module_desktop_imports():
+    imported = set()
+    for source in (Path(__file__).parents[1] / "adr_desktop").rglob("*.py"):
+        for node in ast.walk(ast.parse(source.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.ImportFrom) and node.level == 0:
+                names = [node.module]
+            elif isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            else:
+                continue
+            imported.update(name for name in names if name.split(".")[0] in ("adr_sensor", "adr_discovery"))
+    assert imported
+    assert imported <= required_python_modules()

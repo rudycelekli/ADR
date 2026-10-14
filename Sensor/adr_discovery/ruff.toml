@@ -1,0 +1,11 @@
+# Discovery keeps its own lint settings inside the Sensor package.
+line-length = 110
+target-version = "py311"
+src = [".."]
+
+[lint]
+# Correctness and import hygiene. Style beyond this is not worth a build
+# gate; the rule that actually guards this package is the import test in
+# tests/discovery/unit/test_import_rules.py.
+select = ["E", "F", "I", "B", "SIM"]
+ignore = ["E501", "SIM105", "B008"]

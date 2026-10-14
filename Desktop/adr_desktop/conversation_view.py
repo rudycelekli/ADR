@@ -7,7 +7,7 @@ import sqlite3
 import stat
 from pathlib import Path
 
-from adr_sensor.utils.codex_context import codex_session_context
+from adr_sensor.api import codex_session_context
 
 SETUP_TAGS = (
     "environment_context", "recommended_plugins", "skills_instructions",

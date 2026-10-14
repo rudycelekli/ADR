@@ -98,7 +98,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        component: [Sensor, Discovery, Protection]
+        component: [Sensor, Protection]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -122,6 +122,20 @@ jobs:
           adr_wheel_env="$adr_wheels/venv"
           uv venv --python 3.11 "$adr_wheel_env"
           uv pip install --python "$adr_wheel_env/bin/python" --no-deps "${adr_artifacts[0]}"
+          cd "$adr_wheels"
+          "$adr_wheel_env/bin/python" -I "$adr_smoke"
+      - name: Verify a standalone non-editable Sensor wheel
+        if: matrix.component == 'Sensor'
+        shell: bash
+        run: |
+          adr_smoke="$PWD/Sensor/tests/wheel_smoke.py"
+          adr_wheels=$(mktemp -d "$RUNNER_TEMP/adr-sensor-wheel.XXXXXX")
+          uv build --project Sensor --out-dir "$adr_wheels"
+          adr_artifacts=("$adr_wheels"/*.whl)
+          test "${#adr_artifacts[@]}" -eq 1
+          adr_wheel_env="$adr_wheels/venv"
+          uv venv --python 3.11 "$adr_wheel_env"
+          uv pip install --python "$adr_wheel_env/bin/python" "${adr_artifacts[0]}"
           cd "$adr_wheels"
           "$adr_wheel_env/bin/python" -I "$adr_smoke"
       - name: Save component report

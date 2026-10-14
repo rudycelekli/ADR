@@ -61,7 +61,7 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
-  # Sensor package — security-only, low maintenance burden.
+  # Sensor package (adr_sensor and adr_discovery) — security-only, low maintenance burden.
   - package-ecosystem: "uv"
     directory: "/Sensor"
     schedule:

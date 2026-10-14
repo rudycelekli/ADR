@@ -32,6 +32,10 @@ Thank you for your interest in contributing to ADR Sensor! This guide will help 
    ruff check adr_sensor/
    ruff format adr_sensor/
    ```
+   Discovery changes are checked with its own settings:
+   ```bash
+   ruff check adr_discovery/ tests/discovery/
+   ```
 4. Commit and push
 5. Open a Pull Request
 
@@ -133,7 +137,7 @@ prefer adding a new key alongside the existing one.
 
 ### Step 4: Write Tests
 
-Add test cases to `tests/test_parsers.py` (or `tests/test_my_agent_parser.py` for a
+Add test cases to `tests/sensor/test_parsers.py` (or `tests/sensor/test_my_agent_parser.py` for a
 larger parser) covering:
 - Parsing valid log files
 - Handling missing directories

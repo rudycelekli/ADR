@@ -14,7 +14,7 @@ The endpoint collector is implemented in this repository. Its seven-stage pipeli
 | --- | --- |
 | **Design overview** | The architecture, contracts, target corpus and constraints documented below |
 | **Implementation** | This package: M1–M7, the cross-cutting catalog/redaction/coverage concerns, and the `adr-discovery` CLI |
-| **Verification** | The fast module and pipeline suite under `tests_unit/`, plus the black-box endpoint harness in [../tests/README.md](../tests/README.md) |
+| **Verification** | The fast module and pipeline suite under `tests/discovery/unit/`, plus the black-box endpoint harness in [../tests/discovery/README.md](../tests/discovery/README.md) |
 | **Current maturity** | Core architecture complete; production source coverage and the three-OS golden-endpoint corpus remain incomplete |
 
 The rewrite exists because the old layout had no boundary a linter could check. Five probes each carried their own copy of `PROJECT_ROOTS`; a filename match was enough to become an asset; and a suite of 490 checks derived from the catalog passed while real placement failures went undetected. The sections below are organized around not repeating that.
@@ -279,7 +279,7 @@ Accuracy claims state which layer produced them. A suite whose worlds are built 
 
 ### The two instruments
 
-[tests/README.md](../tests/README.md) specifies the end-to-end fidelity
+[tests/discovery/README.md](../tests/discovery/README.md) specifies the end-to-end fidelity
 measurement: real tools installed on a clean guest per OS, a scan before and
 after, and a comparison of what was installed against what the collector
 reported. The complete three-OS workflow is not operational yet. Linux and
@@ -292,9 +292,9 @@ built on disk and scanned through the real pipeline without requiring a guest.
 
 The two are complementary and neither replaces the other. The fixture suite has a perfect oracle — it built the machine — but can only contain situations somebody imagined, so it catches regressions. The VM run has real input nobody predicted but a slower, costlier oracle, so it discovers defects. Every defect a VM run finds should be reduced to a fixture case, which is the intended flow of work between them.
 
-The harness under `tests/` can validate manifests, synthesize and replay recorded runs, provision through its current guest drivers, and generate JSON and HTML scorecards. Only part of the install manifest currently has executable recipes; see [HARNESS.md](../tests/HARNESS.md) for current counts and known guest limitations.
+The harness under `tests/discovery/` can validate manifests, synthesize and replay recorded runs, provision through its current guest drivers, and generate JSON and HTML scorecards. Only part of the install manifest currently has executable recipes; see [HARNESS.md](../tests/discovery/HARNESS.md) for current counts and known guest limitations.
 
-Unit tests under `tests_unit/` use one focused test module per implementation
+Unit tests under `tests/discovery/unit/` use one focused test module per implementation
 area. Import-graph tests enforce the stage boundaries directly; a module that
 cannot be tested without standing up three others does not have a meaningful
 boundary, whatever the directory listing says.

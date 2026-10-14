@@ -570,8 +570,7 @@ def create_app(runtime) -> FastAPI:
         limit: int = Query(default=20, ge=1, le=100),
         revision: str = Query(default="", max_length=80),
     ):
-        from adr_discovery.coverage.report import coverage_page
-        from adr_discovery.reporter.snapshot import from_dict
+        from adr_discovery.api import coverage_page, from_dict
 
         settings = runtime.store.settings()
         if revision and revision != settings.get("inventory_updated_at"):

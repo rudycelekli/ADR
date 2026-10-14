@@ -50,8 +50,7 @@ The project maintainers will then take care of the issue as soon as possible and
 
 Each component has its own README and, for Sensor, a component-specific contributing guide:
 
-- [Sensor/](Sensor/) — telemetry collection. See [Sensor/CONTRIBUTING.md](Sensor/CONTRIBUTING.md) for parser-specific guidance, code style, and testing conventions.
-- [Discovery/](Discovery/) — local AI application, agent, and extension inventory.
+- [Sensor/](Sensor/) — telemetry collection (`adr_sensor`) and local AI application, agent, and extension inventory (`adr_discovery`, see [Sensor/DISCOVERY.md](Sensor/DISCOVERY.md)). See [Sensor/CONTRIBUTING.md](Sensor/CONTRIBUTING.md) for parser-specific guidance, code style, and testing conventions.
 - [Protection/](Protection/) — offline artifact intelligence. Use its versioned public
   API and preserve fixed compatibility fixtures; identity acquisition and enforcement
   belong to the host. This development component currently targets `desktop-dev`.

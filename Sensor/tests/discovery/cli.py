@@ -1,4 +1,4 @@
-"""python3 -m tests.cli — the harness from one command.
+"""python3 -m tests.discovery.cli — the harness from one command.
 
 Subcommands exist along the file boundaries the design is built on: a run can
 be synthesized, scored, and reported independently, so a failed run is
@@ -35,7 +35,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="tests.cli", description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(prog="tests.discovery.cli", description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command")
 
     check = sub.add_parser("check", help="static manifest checks; no guest needed")
