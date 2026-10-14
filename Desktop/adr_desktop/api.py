@@ -18,7 +18,7 @@ from starlette.concurrency import run_in_threadpool
 
 from . import agent_plugins, hooks
 from .approval_queue import APPROVAL_TIMEOUT_SECONDS
-from .config import CAPTURE_INTERVAL_SECONDS, MAX_JSON_BYTES, canonical, utcnow
+from .config import CAPTURE_INTERVAL_SECONDS, utcnow
 from .credential_activity import RUN_ID, recent_runs, record_session
 from .integrations.agents import HARNESS_LABELS
 from .native import NativeTimedOut, NativeUnavailable
@@ -27,6 +27,7 @@ from .protection import evaluate_operation
 from .review_process import ReviewError
 from .secret_guard import KINDS, detect_credentials
 from .security_reviews import receive_claude_usage
+from .storage.files import MAX_JSON_BYTES, canonical
 from .threat_feed import MAX_FEED_BYTES
 from .threat_protection import ThreatStateConflict
 

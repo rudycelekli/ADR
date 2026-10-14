@@ -6,8 +6,8 @@ import zlib
 import pytest
 from conftest import add_credential, grant_token, sample_session
 
-from adr_desktop.config import canonical, prepare_state_dir
 from adr_desktop.mcp_server import tools_for
+from adr_desktop.storage.files import canonical, prepare_state_dir
 from adr_desktop.store import SCHEMA, Store
 
 

@@ -5,8 +5,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from adr_desktop.api import create_app
-from adr_desktop.config import prepare_state_dir
 from adr_desktop.runtime import Runtime
+from adr_desktop.storage.files import prepare_state_dir
 
 
 class FakeNative:

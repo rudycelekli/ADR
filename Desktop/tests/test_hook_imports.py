@@ -28,11 +28,9 @@ FORBIDDEN = (
     "adr_discovery",
 )
 
-# Loaded today by imports that run while the hook works: the prompt entry
-# reaches the store through environment_vault, and the store loads Sensor
-# through conversation_view. These lists only shrink: delete an entry once
-# the hook stops loading it.
-KNOWN_LOADS = {"pre": (), "prompt": ("adr_desktop.store", "adr_sensor")}
+# Forbidden modules the hook still loads, by phase. None are left. These
+# lists only shrink: delete an entry once the hook stops loading it.
+KNOWN_LOADS = {"pre": (), "prompt": ()}
 
 
 def loaded_modules(stderr):

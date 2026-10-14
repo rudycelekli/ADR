@@ -5,9 +5,9 @@ import time
 
 import pytest
 
-from adr_desktop.config import atomic_json, read_private_json
 from adr_desktop.guard import GUARD_VERSION, install_guard, publish_target, upgrade_guard
 from adr_desktop.policy import DENIAL_REASONS
+from adr_desktop.storage.files import atomic_json, read_private_json
 
 
 @pytest.fixture

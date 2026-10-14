@@ -15,8 +15,9 @@ from .artifact_identity import (
     inspect_mcp_definition,
     skill_roots,
 )
-from .config import canonical, utcnow
+from .config import utcnow
 from .detection.operation import printable
+from .storage.files import canonical
 from .threat_feed import (
     BUNDLED_FEED_ID,
     compile_generation,

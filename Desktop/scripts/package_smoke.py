@@ -11,7 +11,7 @@ from pathlib import Path
 
 import httpx
 
-from adr_desktop.config import atomic_json, prepare_state_dir, read_private_json
+from adr_desktop.storage.files import atomic_json, prepare_state_dir, read_private_json
 from adr_desktop.store import Store
 
 ROOT = Path(__file__).resolve().parents[1]

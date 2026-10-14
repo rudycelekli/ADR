@@ -9,7 +9,7 @@ import subprocess
 from pathlib import Path
 
 from . import hooks
-from .config import atomic_json, canonical, command_prefix, utcnow
+from .config import command_prefix, utcnow
 from .guard import install_guard, publish_target
 from .integrations.agents import (
     HARNESS_LABELS,
@@ -20,7 +20,8 @@ from .integrations.agents import (
     directory,
     read_receipt,
 )
-from .store import new_id
+from .storage.files import atomic_json, canonical
+from .storage.ids import new_id
 
 CONTEXT_SERVER = "adr_context"
 AGENT_SERVER = "adr"

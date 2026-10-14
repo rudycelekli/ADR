@@ -5,7 +5,7 @@ import json
 import re
 from pathlib import Path
 
-from .config import read_private_json
+from .storage.files import read_private_json
 
 
 class LocalUnavailable(RuntimeError):

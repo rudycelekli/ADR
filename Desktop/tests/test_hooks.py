@@ -4,8 +4,8 @@ from pathlib import Path
 import pytest
 
 from adr_desktop import hooks
-from adr_desktop.config import atomic_json
 from adr_desktop.integrations import agents
+from adr_desktop.storage.files import atomic_json
 
 
 def test_claude_install_preserves_settings_and_other_hooks(runtime, tmp_path):

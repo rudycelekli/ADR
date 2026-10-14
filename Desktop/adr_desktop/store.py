@@ -3,27 +3,18 @@
 import hashlib
 import json
 import re
-import sqlite3
-import threading
-import uuid
 import zlib
 from collections import Counter
-from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .config import (
-    CAPTURE_INTERVAL_SECONDS,
-    DEFAULT_SETTINGS,
-    MAX_JSON_BYTES,
-    MAX_STATE_BYTES,
-    canonical,
-    utcnow,
-)
+from .config import CAPTURE_INTERVAL_SECONDS, DEFAULT_SETTINGS, MAX_STATE_BYTES, utcnow
 from .conversation_view import context_label, is_setup_message, recover_codex_metadata, session_title
 from .credential_activity import session_run_ids
 from .detection.operation import project_path
+from .storage.database import Database
+from .storage.files import MAX_JSON_BYTES, canonical
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -156,10 +147,6 @@ METADATA_FIELDS = """
 """
 
 
-def new_id() -> str:
-    return uuid.uuid4().hex
-
-
 def _timestamp(value: Any) -> str:
     """Normalize captured instants; unknown dates must not acquire capture recency."""
     if isinstance(value, str):
@@ -215,21 +202,10 @@ def _preview_excerpt(text: str, terms: list[str], length: int = 280) -> str:
     return ("…" if start else "") + text[start:end] + ("…" if end < len(text) else "")
 
 
-class Store:
+class Store(Database):
     def __init__(self, state_dir: Path):
-        self.path = state_dir / "desktop.sqlite3"
-        if self.path.is_symlink():
-            raise ValueError("The database must not be a symbolic link")
-        self.lock = threading.RLock()
-        self.db = sqlite3.connect(self.path, check_same_thread=False, timeout=10)
-        self.db.row_factory = sqlite3.Row
-        version = self.db.execute("PRAGMA user_version").fetchone()[0]
-        if version not in (0, 1, 2, 3):
-            self.db.close()
-            raise RuntimeError("This database was created by a newer ADR Desktop")
-        self.db.execute("PRAGMA journal_mode=WAL")
-        self.db.execute("PRAGMA foreign_keys=ON")
-        self.db.executescript(SCHEMA)
+        super().__init__(state_dir)
+        self.register(SCHEMA)
         columns = {row["name"] for row in self.db.execute("PRAGMA table_info(grants)")}
         for name, default in (("kind", "legacy"), ("history_scope", "project"), ("approval_mode", "ask")):
             if name not in columns:
@@ -457,28 +433,6 @@ class Store:
                     payload = json.loads(zlib.decompress(row["payload"]))
                     self._index_session(connection, row["id"], row["digest"], payload)
             after = rows[-1]["id"]
-
-    @contextmanager
-    def transaction(self):
-        with self.lock:
-            try:
-                yield self.db
-                self.db.commit()
-            except BaseException:
-                self.db.rollback()
-                raise
-
-    def rows(self, query: str, values=()) -> list[dict]:
-        with self.lock:
-            return [dict(row) for row in self.db.execute(query, values).fetchall()]
-
-    def one(self, query: str, values=()) -> dict | None:
-        result = self.rows(query, values)
-        return result[0] if result else None
-
-    def execute(self, query: str, values=()) -> int:
-        with self.transaction() as connection:
-            return connection.execute(query, values).rowcount
 
     def settings(self) -> dict:
         return {row["key"]: json.loads(row["value"]) for row in self.rows("SELECT * FROM settings")}
@@ -849,7 +803,3 @@ class Store:
             self.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
             self.db.execute("VACUUM")
         self.audit("history_deleted", "Collected session history deleted by the user")
-
-    def close(self):
-        with self.lock:
-            self.db.close()

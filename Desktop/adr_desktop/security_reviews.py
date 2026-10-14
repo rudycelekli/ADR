@@ -7,9 +7,10 @@ import threading
 import time
 import uuid
 
-from .config import canonical, utcnow
+from .config import utcnow
 from .review_process import ERRORS, LocalReviewDriver, ReviewError
 from .review_quota import admission, claude_quota, combine_claude, number
+from .storage.files import canonical
 
 VERSION = "session-review-v1"
 DEFAULTS = {

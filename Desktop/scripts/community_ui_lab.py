@@ -15,8 +15,8 @@ from qa_support import isolated_agent_profile
 from ui_qa import SyntheticNative, SyntheticPluginDriver, seed
 
 from adr_desktop.api import create_app
-from adr_desktop.config import atomic_json, prepare_state_dir
 from adr_desktop.runtime import Runtime
+from adr_desktop.storage.files import atomic_json, prepare_state_dir
 
 
 def main():

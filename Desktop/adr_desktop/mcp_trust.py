@@ -7,9 +7,9 @@ import sys
 import tomllib
 from pathlib import Path
 
-from .config import read_private_json
 from .integrations.agents import configuration_path, plugin_root
 from .local_client import request
+from .storage.files import read_private_json
 
 TOOLS = {
     "adr": {

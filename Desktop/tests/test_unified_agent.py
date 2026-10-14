@@ -4,10 +4,10 @@ import pytest
 from conftest import FakePluginDriver, grant_token, sample_session
 
 from adr_desktop import agent_plugins
-from adr_desktop.config import read_private_json
 from adr_desktop.integrations import agents
 from adr_desktop.mcp_server import tools_for
 from adr_desktop.native import NativeUnavailable
+from adr_desktop.storage.files import read_private_json
 
 
 def active_grant(runtime, harness="codex"):

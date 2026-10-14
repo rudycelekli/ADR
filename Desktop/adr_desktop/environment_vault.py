@@ -6,13 +6,14 @@ import threading
 import time
 from pathlib import Path
 
-from .config import atomic_json, canonical, utcnow
+from .config import utcnow
 from .detection.operation import resolve_path
 from .local_client import SAFE_ERRORS
 from .native import NativeTimedOut, NativeUnavailable
 from .protection import evaluate_operation
 from .secret_guard import detect_credentials, detect_prompt_credentials
-from .store import new_id
+from .storage.files import atomic_json, canonical
+from .storage.ids import new_id
 
 ENV_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}")
 RESERVED = frozenset(

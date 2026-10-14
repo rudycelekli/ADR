@@ -9,9 +9,9 @@ from unittest.mock import patch
 import pytest
 from conftest import grant_token
 
-from adr_desktop.config import atomic_json
 from adr_desktop.policy import evaluate, hook_output
 from adr_desktop.presets import STARTER_ID, starter_catalog
+from adr_desktop.storage.files import atomic_json
 
 
 @pytest.fixture

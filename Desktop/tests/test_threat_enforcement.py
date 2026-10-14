@@ -9,11 +9,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from adr_desktop.config import atomic_json
 from adr_desktop.guard import install_guard
 from adr_desktop.hooks import run_hook
 from adr_desktop.policy import Decision
 from adr_desktop.protection import evaluate_operation
+from adr_desktop.storage.files import atomic_json
 from adr_desktop.threat_feed import BUNDLED_FEED_ID, compose_generation, load_bundled_feed
 
 

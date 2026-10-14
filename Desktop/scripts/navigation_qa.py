@@ -16,8 +16,8 @@ from qa_support import browser_evidence, isolated_agent_profile
 from ui_qa import SyntheticNative, SyntheticPluginDriver, seed
 
 from adr_desktop.api import create_app
-from adr_desktop.config import prepare_state_dir
 from adr_desktop.runtime import Runtime
+from adr_desktop.storage.files import prepare_state_dir
 
 
 def seed_conversation(runtime, name, *, parent=None):

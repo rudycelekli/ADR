@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from adr_desktop.config import atomic_json
 from adr_desktop.detection.operation import resolve_path
 from adr_desktop.policy import evaluate, hook_output, validate_rule
+from adr_desktop.storage.files import atomic_json
 
 
 def policy(path, action="block", kind="directory", **options):

@@ -22,9 +22,10 @@ import uvicorn
 
 from adr_desktop import agent_plugins
 from adr_desktop.api import create_app
-from adr_desktop.config import atomic_json, prepare_state_dir, utcnow
+from adr_desktop.config import utcnow
 from adr_desktop.integrations import agents
 from adr_desktop.runtime import Runtime
+from adr_desktop.storage.files import atomic_json, prepare_state_dir
 
 
 class TestPluginDriver(agent_plugins.NativePluginDriver):

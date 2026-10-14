@@ -5,7 +5,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from .config import atomic_json, command_prefix, read_private_json
+from .config import command_prefix
+from .storage.files import atomic_json, read_private_json
 
 GUARD_VERSION = 7
 
