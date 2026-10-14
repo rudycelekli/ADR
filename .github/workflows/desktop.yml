@@ -36,6 +36,9 @@ jobs:
         run: |
           uv run --locked ruff check adr_desktop tests scripts
           uv run --locked ruff check --config ../Protection/pyproject.toml ../Protection/adr_protection ../Protection/tests
+      - name: Import boundaries
+        working-directory: Desktop
+        run: uv run --locked lint-imports
       - name: JavaScript syntax
         working-directory: Desktop
         run: |

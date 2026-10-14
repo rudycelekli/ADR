@@ -380,6 +380,7 @@ Deleting an ADR credential does **not** revoke the upstream provider's token.
 ```sh
 uv run pytest -q
 uv run ruff check adr_desktop tests scripts
+uv run lint-imports
 uv run python -m playwright install chromium
 uv run python scripts/ui_qa.py
 uv run python scripts/setup_ui_qa.py --output test-results/setup
