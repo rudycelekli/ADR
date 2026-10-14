@@ -19,17 +19,18 @@ from starlette.concurrency import run_in_threadpool
 from . import agent_plugins, hooks
 from .approval_queue import APPROVAL_TIMEOUT_SECONDS
 from .config import CAPTURE_INTERVAL_SECONDS, command_prefix, utcnow
-from .credential_activity import RUN_ID, recent_runs, record_session
+from .credential_activity import RUN_ID, recent_runs
 from .detection.inline.credentials import KINDS, detect_credentials
 from .detection.inline.feed.api_v1 import MAX_FEED_BYTES
 from .detection.review.runners import ReviewError
 from .evaluate import evaluate_operation
 from .integrations.agents import HARNESS_LABELS
 from .integrations.events import event_fields
-from .native import NativeTimedOut, NativeUnavailable
 from .security_reviews import receive_claude_usage
 from .storage.files import MAX_JSON_BYTES, canonical
 from .threat_protection import ThreatStateConflict
+from .vault.audit import record_session
+from .vault.contracts import NativeTimedOut, NativeUnavailable
 
 COOKIE = "adr_session"
 

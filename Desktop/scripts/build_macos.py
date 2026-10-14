@@ -47,6 +47,8 @@ def required_python_modules():
         "adr_desktop.integrations.agents", "adr_desktop.integrations.events",
         "adr_desktop.protection.contracts", "adr_desktop.protection.policy", "adr_desktop.protection.presets",
         "adr_desktop.storage.database", "adr_desktop.storage.files", "adr_desktop.storage.ids",
+        "adr_desktop.vault.audit", "adr_desktop.vault.broker", "adr_desktop.vault.contracts",
+        "adr_desktop.vault.environment", "adr_desktop.vault.ports",
         "adr_discovery.api", "adr_discovery.pipeline", "adr_discovery.coverage.report",
         "adr_sensor.api", "adr_sensor.observer", "tabulate", "zstandard",
     }

@@ -9,12 +9,11 @@ from pathlib import Path
 
 from . import __version__
 from .approval_queue import ApprovalQueue
-from .broker import Broker
 from .collector import SOURCE_LABELS, Collector
 from .config import CAPTURE_INTERVAL_SECONDS, command_prefix, token, token_hash, utcnow
 from .detection.inline.feed.api_v1 import compile_generation
 from .detection.operation import project_path
-from .environment_vault import EnvironmentVault
+from .evaluate import VaultGuard
 from .guard import GUARD_VERSION, publish_target, upgrade_guard
 from .hooks import installed
 from .integrations.agents import HARNESS_LABELS, configuration_path, configured, read_receipt
@@ -26,6 +25,18 @@ from .storage.files import atomic_json, canonical, read_private_json
 from .storage.ids import new_id
 from .store import Store
 from .threat_protection import MAX_POLICY_BYTES, ThreatProtection, initialize_threats
+from .vault.broker import Broker
+from .vault.environment import EnvironmentVault
+
+
+class StoredGrants:
+    """Fills the vault's Grants port from the grants table."""
+
+    def __init__(self, store):
+        self.store = store
+
+    def active(self, grant_id):
+        return self.store.one("SELECT * FROM grants WHERE id=? AND revoked=0", (grant_id,))
 
 
 class Runtime:
@@ -52,8 +63,11 @@ class Runtime:
         if __import__("os").name != "nt":
             publish_target(state_dir)
             upgrade_guard(state_dir)
-        self.broker = Broker(self.store, self.native)
-        self.environment_vault = EnvironmentVault(self)
+        grants = StoredGrants(self.store)
+        self.broker = Broker(self.store, self.native, grants)
+        self.environment_vault = EnvironmentVault(
+            self.store, state_dir, self.native, self.broker, VaultGuard(self), grants,
+        )
         self.collector = Collector(self.store, state_dir)
         atomic_json(state_dir / "hook-access.json", {"token": self.hook_token})
         if start_collectors:
@@ -370,9 +384,7 @@ class Runtime:
 
     def revoke_grant(self, identifier: str):
         self.store.execute("UPDATE grants SET revoked=1 WHERE id=?", (identifier,))
-        self.store.execute(
-            "UPDATE broker_requests SET state='revoked',result=NULL WHERE grant_id=?", (identifier,)
-        )
+        self.broker.revoke_requests(identifier)
         self.store.audit("agent_revoked", "Agent access revoked", {"id": identifier})
 
     def status(self):

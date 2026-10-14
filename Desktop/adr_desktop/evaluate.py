@@ -1,5 +1,6 @@
 """Compose exact artifact matches with existing file and harness permissions."""
 
+import time
 from pathlib import Path
 
 from .detection.inline.artifacts import READ_TOOLS, identify_operation
@@ -10,6 +11,7 @@ from .integrations.events import event_fields, event_operation
 from .mcp_trust import trusted_tool
 from .protection.contracts import DENIAL_REASONS, Decision
 from .protection.policy import evaluate
+from .storage.files import canonical
 
 
 def evaluate_operation(event, harness, snapshot, *, state_dir, allow_adr_trust=True,
@@ -59,3 +61,51 @@ def evaluate_operation(event, harness, snapshot, *, state_dir, allow_adr_trust=T
             }
             return base
     return base
+
+
+class VaultGuard:
+    """Fills the vault's Guard port. A credential-backed command is decided as an agent's Bash call under
+    the current policy, and the owner approves it in the menu-bar app, in turn with the hooks' approvals."""
+
+    def __init__(self, runtime):
+        self.runtime = runtime
+
+    def evaluate(self, command, cwd, environment):
+        event = {"tool_name": "Bash", "tool_input": {"command": command}, "cwd": cwd}
+        decision = evaluate_operation(
+            event, "codex", self.runtime.policy, state_dir=self.runtime.state_dir, allow_adr_trust=False,
+            environment=environment,
+        )
+        if decision.decision == "deny" and decision.artifact:
+            self.runtime.threats.record_block(decision, harness="vault", source="vault")
+        return decision
+
+    def approve(self, agent, command, cwd, variables):
+        deadline = time.monotonic() + 80
+        ticket, failure = self.runtime.hook_approvals.acquire(deadline)
+        if ticket is None:
+            raise PermissionError("ADR could not obtain approval for this command")
+        try:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise PermissionError("Command approval expired")
+            answer = self.runtime.native.call(
+                "approve_tool",
+                {
+                    "harness": agent,
+                    "tool": "Credential-backed command",
+                    "operation": canonical(
+                        {
+                            "command": command,
+                            "cwd": cwd,
+                            "variables": variables,
+                        }
+                    ),
+                    "expires_at": time.time() + remaining,
+                },
+                timeout=remaining,
+            )
+            if answer.get("allowed") is not True or time.monotonic() >= deadline:
+                raise PermissionError("Credential-backed command was not approved")
+        finally:
+            self.runtime.hook_approvals.release(ticket)

@@ -6,16 +6,12 @@ import threading
 import uuid
 from concurrent.futures import Future, TimeoutError
 
-
-class NativeUnavailable(RuntimeError):
-    pass
-
-
-class NativeTimedOut(NativeUnavailable):
-    pass
+from .vault.contracts import NativeTimedOut, NativeUnavailable
 
 
 class NativeBridge:
+    """Fills the vault's NativeVault port."""
+
     def __init__(self, enabled=False):
         self.enabled = enabled
         self.connected = enabled
