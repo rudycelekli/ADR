@@ -5,11 +5,12 @@ import pytest
 
 from adr_desktop import hooks
 from adr_desktop.config import atomic_json
+from adr_desktop.integrations import agents
 
 
 def test_claude_install_preserves_settings_and_other_hooks(runtime, tmp_path):
     home = tmp_path / "fixture-home"
-    target = hooks.configuration_path("claude", home)
+    target = agents.configuration_path("claude", home)
     original = {
         "permissions": {"deny": ["Read(example)"]},
         "hooks": {
@@ -38,7 +39,7 @@ def test_copilot_uses_user_hook_schema_and_installs_idempotently(runtime, tmp_pa
     home = tmp_path / "fixture-home"
     hooks.install("copilot", runtime.state_dir, home, prefix=["/example/ADRCore"])
     hooks.install("copilot", runtime.state_dir, home, prefix=["/example/ADRCore"])
-    content = json.loads(hooks.configuration_path("copilot", home).read_text())
+    content = json.loads(agents.configuration_path("copilot", home).read_text())
     assert content["version"] == 1
     assert len(content["hooks"]["preToolUse"]) == 1
     assert set(content["hooks"]["preToolUse"][0]) == {"type", "bash", "timeoutSec"}
@@ -49,7 +50,7 @@ def test_copilot_uses_user_hook_schema_and_installs_idempotently(runtime, tmp_pa
 
 def test_invalid_config_is_not_replaced(runtime, tmp_path):
     home = tmp_path / "fixture-home"
-    target = hooks.configuration_path("claude", home)
+    target = agents.configuration_path("claude", home)
     target.parent.mkdir(parents=True)
     target.write_text("not json")
     with pytest.raises(ValueError):
@@ -59,7 +60,7 @@ def test_invalid_config_is_not_replaced(runtime, tmp_path):
 
 def test_symlinked_config_is_not_overwritten(runtime, tmp_path):
     home = tmp_path / "fixture-home"
-    target = hooks.configuration_path("claude", home)
+    target = agents.configuration_path("claude", home)
     target.parent.mkdir(parents=True)
     outside = tmp_path / "outside.json"
     outside.write_text("{}")
@@ -77,7 +78,7 @@ def test_hook_install_and_lookup_agree_with_config_root_overrides(
     ambient = tmp_path / "custom-agent-root"
     monkeypatch.setenv(variable, str(ambient))
     home = Path.home() if explicit_home else None
-    target = hooks.configuration_path(harness, home)
+    target = agents.configuration_path(harness, home)
     result = hooks.install(harness, runtime.state_dir, home)
     assert Path(result["path"]) == target
     assert target.is_file()

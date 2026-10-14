@@ -20,6 +20,13 @@ from .config import (
 )
 from .credential_activity import NATIVE_SESSION_ID, credential_command, result_run_ids
 from .guard import _atomic_bytes, install_guard, publish_target
+from .integrations.agents import (
+    _bundle_root,
+    configuration_path,
+    configured,
+    opencode_plugin_installed,
+    plugin_root,
+)
 from .local_client import request
 from .mcp_trust import trusted_grant_id
 from .policy import DENIAL_REASONS, DIRECT_TOOLS, SHELL_TOOLS, Decision, event_fields, hook_output
@@ -27,32 +34,6 @@ from .protection import evaluate_operation
 from .secret_guard import VAULT_MESSAGE, check_file, detect_credentials
 
 MARKER = "adr-desktop-file-guard"
-HARNESS_LABELS = {
-    "claude": "Claude Code",
-    "codex": "Codex",
-    "opencode": "opencode",
-    "copilot": "GitHub Copilot CLI",
-}
-
-
-def configuration_path(harness: str, home: Path | None = None) -> Path:
-    explicit_home = home is not None
-    home = home or Path.home()
-    if harness == "claude":
-        return home / ".claude" / "settings.json"
-    if harness == "copilot":
-        return home / ".copilot" / "hooks" / "adr-desktop.json"
-    if harness == "codex":
-        root = home / ".codex" if explicit_home else Path(os.environ.get("CODEX_HOME", str(home / ".codex")))
-        return root / "hooks.json"
-    if harness == "opencode":
-        root = (
-            home / ".config"
-            if explicit_home
-            else Path(os.environ.get("XDG_CONFIG_HOME", str(home / ".config")))
-        )
-        return root / "opencode" / "plugins" / "adr-desktop.js"
-    raise ValueError("Unsupported hook harness")
 
 
 def _is_ours(command: dict) -> bool:
@@ -289,23 +270,14 @@ def installed(harness: str, home: Path | None = None, *, phase="pre", state_dir:
     if phase == "prompt" and harness not in ("claude", "codex"):
         return False
     if state_dir is not None and harness != "opencode":
-        from .agent_plugins import configured
-
         if configured(state_dir, harness):
             if phase == "prompt":
-                from .agent_plugins import _bundle_root
-
                 config = read_private_json(_bundle_root(state_dir, harness) / "hooks/hooks.json")
                 return bool(config.get("hooks", {}).get("UserPromptSubmit"))
             return phase == "pre" or harness != "copilot"
     try:
         if harness == "opencode":
-            source = configuration_path(harness, home).read_bytes()
-            if state_dir is not None:
-                record = read_private_json(state_dir / "opencode-plugin.json")
-                if record.get("digest") != hashlib.sha256(source).hexdigest():
-                    return False
-            return source.startswith(b"// ADR managed plugin: adr-desktop-file-guard")
+            return opencode_plugin_installed(home, state_dir=state_dir)
         if phase == "post" and harness == "copilot":
             return False
         config = strict_json(configuration_path(harness, home).read_bytes(), max_bytes=1024 * 1024)
@@ -335,8 +307,6 @@ def _current_hook_policy(state_dir: Path, harness: str):
     snapshot = read_private_json(state_dir / "policy.json", maximum=1024 * 1024)
     if not isinstance(snapshot, dict) or snapshot.get("version") != 1:
         raise ValueError("Unsupported policy version")
-    from .agent_plugins import plugin_root
-
     root = plugin_root(state_dir, harness)
     if root:
         snapshot.setdefault("control_paths", []).append([str(root), "directory"])

@@ -189,7 +189,7 @@ def main(argv=None):
                 print(result["message"], file=sys.stderr)
             return result.get("exit_code") if isinstance(result.get("exit_code"), int) else 1
         if args.command == "context":
-            from .agent_plugins import read_receipt
+            from .integrations.agents import read_receipt
             from .mcp_server import serve as mcp_serve
 
             receipt = read_receipt(args.state_dir, args.harness)

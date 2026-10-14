@@ -8,7 +8,8 @@ from types import SimpleNamespace
 import pytest
 
 from adr_desktop.guard import install_guard
-from adr_desktop.hooks import configuration_path, install, installed, run_hook, uninstall
+from adr_desktop.hooks import install, installed, run_hook, uninstall
+from adr_desktop.integrations.agents import configuration_path
 from adr_desktop.policy import DENIAL_REASONS
 from adr_desktop.secret_guard import detect_credentials
 

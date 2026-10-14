@@ -8,6 +8,7 @@ import tomllib
 from pathlib import Path
 
 from .config import read_private_json
+from .integrations.agents import configuration_path, plugin_root
 from .local_client import request
 
 TOOLS = {
@@ -68,9 +69,6 @@ def trusted_grant_id(event, harness, state_dir):
         return False
     server = matches[0]
     try:
-        from .agent_plugins import plugin_root
-        from .hooks import configuration_path
-
         cwd = Path(event.get("cwd", ""))
         if not cwd.is_absolute():
             return False

@@ -20,6 +20,7 @@ from . import agent_plugins, hooks
 from .approval_queue import APPROVAL_TIMEOUT_SECONDS
 from .config import CAPTURE_INTERVAL_SECONDS, MAX_JSON_BYTES, canonical, utcnow
 from .credential_activity import RUN_ID, recent_runs, record_session
+from .integrations.agents import HARNESS_LABELS
 from .native import NativeTimedOut, NativeUnavailable
 from .policy import event_fields
 from .protection import evaluate_operation
@@ -684,7 +685,7 @@ def create_app(runtime) -> FastAPI:
                 "approve_integration",
                 {
                     "harness": (
-                        "installed agents" if body.harness == "all" else hooks.HARNESS_LABELS[body.harness]
+                        "installed agents" if body.harness == "all" else HARNESS_LABELS[body.harness]
                     ),
                     "credentials": body.allow_credentials or body.allow_agents,
                 },

@@ -5,12 +5,13 @@ from conftest import FakePluginDriver, grant_token, sample_session
 
 from adr_desktop import agent_plugins
 from adr_desktop.config import read_private_json
+from adr_desktop.integrations import agents
 from adr_desktop.mcp_server import tools_for
 from adr_desktop.native import NativeUnavailable
 
 
 def active_grant(runtime, harness="codex"):
-    receipt = agent_plugins.read_receipt(runtime.state_dir, harness)
+    receipt = agents.read_receipt(runtime.state_dir, harness)
     return runtime.store.one("SELECT * FROM grants WHERE id=?", (receipt["grant_id"],))
 
 
@@ -35,14 +36,14 @@ def test_single_owner_action_connects_all_harnesses_without_per_key_configuratio
         "copilot",
         "opencode",
     }
-    for harness in agent_plugins.hooks.HARNESS_LABELS:
+    for harness in agents.HARNESS_LABELS:
         principal = active_grant(runtime, harness)
         assert principal["kind"] == "agent"
         assert principal["history_scope"] == "device"
         assert principal["approval_mode"] == "automatic"
         assert principal["project"] == ""
         assert json.loads(principal["credentials"]) == ["*"]
-        root = agent_plugins.directory(runtime.state_dir, harness) / "catalog/plugins/adr-agent"
+        root = agents.directory(runtime.state_dir, harness) / "catalog/plugins/adr-agent"
         assert set(json.loads((root / ".mcp.json").read_text())["mcpServers"]) == {"adr"}
         assert (root / "skills/adr/SKILL.md").is_file()
         assert (root / "hooks/hooks.json").is_file()

@@ -10,6 +10,7 @@ from adr_desktop import agent_plugins, hooks, prompt_guard
 from adr_desktop.config import atomic_json
 from adr_desktop.environment_vault import PROMPT_MESSAGE
 from adr_desktop.guard import install_guard, publish_target
+from adr_desktop.integrations import agents
 
 
 @pytest.mark.parametrize("harness", ["claude", "codex"])
@@ -99,7 +100,7 @@ def test_compiled_prompt_guard_fails_closed_if_the_core_is_missing(runtime):
 @pytest.mark.parametrize("harness", ["claude", "codex"])
 def test_prompt_install_and_remove_preserve_other_hooks(runtime, tmp_path, harness):
     home = tmp_path / "synthetic-home"
-    target = hooks.configuration_path(harness, home)
+    target = agents.configuration_path(harness, home)
     foreign = {"hooks": [{"type": "command", "command": "foreign-prompt-check"}]}
     atomic_json(target, {"hooks": {"UserPromptSubmit": [foreign]}})
     hooks.install(harness, runtime.state_dir, home)
@@ -109,7 +110,7 @@ def test_prompt_install_and_remove_preserve_other_hooks(runtime, tmp_path, harne
 
 
 def test_uninstall_preserves_explicit_empty_prompt_setting(runtime):
-    target = hooks.configuration_path("codex")
+    target = agents.configuration_path("codex")
     atomic_json(target, {"hooks": {"UserPromptSubmit": []}})
     hooks.install("codex", runtime.state_dir)
     hooks.uninstall("codex", runtime.state_dir)

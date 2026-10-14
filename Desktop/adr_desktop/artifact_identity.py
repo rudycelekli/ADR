@@ -19,6 +19,7 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .integrations.agents import configuration_path
 from .policy import PATH_KEYS, SHELL_TOOLS, event_fields, literal_shell_files, resolve_path
 from .threat_feed import normalize_endpoint, normalize_package_name, normalize_registry
 
@@ -236,8 +237,6 @@ def configuration_files(harness: str, cwd: str) -> list[Path]:
     if harness == "claude":
         files = [home / ".claude.json", *(root / ".mcp.json" for root in roots)]
     elif harness == "codex":
-        from .hooks import configuration_path
-
         files = [configuration_path("codex").parent / "config.toml",
                  *(root / ".codex/config.toml" for root in roots)]
     elif harness == "opencode":

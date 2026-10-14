@@ -6,6 +6,7 @@ import pytest
 from conftest import FakePluginDriver, grant_token, sample_session
 
 from adr_desktop import agent_plugins, hooks
+from adr_desktop.integrations import agents
 
 
 @pytest.fixture
@@ -19,8 +20,8 @@ def driver(runtime):
 def test_one_bundle_contains_hooks_and_read_only_context(runtime, driver, harness):
     result = agent_plugins.connect(runtime, harness, allow_context=True, driver=driver)
     assert result["status"] == "configured"
-    receipt = agent_plugins.read_receipt(runtime.state_dir, harness)
-    root = agent_plugins.directory(runtime.state_dir, harness) / "catalog/plugins/adr-agent"
+    receipt = agents.read_receipt(runtime.state_dir, harness)
+    root = agents.directory(runtime.state_dir, harness) / "catalog/plugins/adr-agent"
     mcp = json.loads((root / ".mcp.json").read_text())
     assert "adr_context" in mcp["mcpServers"]
     assert (root / "hooks/hooks.json").is_file()
@@ -37,7 +38,7 @@ def test_one_bundle_contains_hooks_and_read_only_context(runtime, driver, harnes
 @pytest.mark.parametrize("harness", ["claude", "codex"])
 def test_native_bundle_names_its_protection_checks(runtime, driver, harness):
     agent_plugins.connect(runtime, harness, allow_context=True, driver=driver)
-    root = agent_plugins.directory(runtime.state_dir, harness) / "catalog/plugins/adr-agent"
+    root = agents.directory(runtime.state_dir, harness) / "catalog/plugins/adr-agent"
     configured = json.loads((root / "hooks/hooks.json").read_text())["hooks"]
     assert configured["PreToolUse"][0]["hooks"][0]["statusMessage"] == "ADR: check file access"
     assert configured["PostToolUse"][0]["hooks"][0]["statusMessage"] == "ADR: check tool output"
@@ -52,9 +53,9 @@ def test_no_context_permission_is_created_without_consent(runtime, driver):
 
 def test_updates_reuse_the_permission_and_private_marketplace(runtime, driver):
     agent_plugins.connect(runtime, "codex", allow_context=True, driver=driver)
-    before = agent_plugins.read_receipt(runtime.state_dir, "codex")
+    before = agents.read_receipt(runtime.state_dir, "codex")
     agent_plugins.connect(runtime, "codex", allow_context=True, driver=driver)
-    after = agent_plugins.read_receipt(runtime.state_dir, "codex")
+    after = agents.read_receipt(runtime.state_dir, "codex")
     assert before["grant_id"] == after["grant_id"] and before["market"] == after["market"]
     assert len(runtime.store.rows("SELECT * FROM grants")) == 1
 
@@ -66,7 +67,7 @@ def test_failed_install_revokes_new_context_access(runtime, driver, monkeypatch)
     with pytest.raises(RuntimeError):
         agent_plugins.connect(runtime, "codex", allow_context=True, driver=driver)
     assert runtime.store.one("SELECT revoked FROM grants")["revoked"] == 1
-    assert agent_plugins.read_receipt(runtime.state_dir, "codex")["status"] == "needs_repair"
+    assert agents.read_receipt(runtime.state_dir, "codex")["status"] == "needs_repair"
 
 
 def test_disconnect_revokes_access_before_a_native_uninstall_failure(runtime, driver, monkeypatch):
@@ -77,11 +78,11 @@ def test_disconnect_revokes_access_before_a_native_uninstall_failure(runtime, dr
     with pytest.raises(RuntimeError):
         agent_plugins.disconnect(runtime, "codex", driver=driver)
     assert runtime.store.one("SELECT revoked FROM grants")["revoked"] == 1
-    assert not agent_plugins.configured(runtime.state_dir, "codex")
+    assert not agents.configured(runtime.state_dir, "codex")
 
 
 def test_native_bundle_replaces_only_older_direct_adr_hooks(runtime, driver):
-    target = hooks.configuration_path("claude")
+    target = agents.configuration_path("claude")
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(
         json.dumps(
@@ -113,7 +114,7 @@ def test_owner_endpoint_requires_context_consent_and_does_not_grant_vault(client
     assert client.post(url, json={"allow_context": True}).status_code == 401
     assert client.post(url, headers=owner, json={}).status_code == 400
     assert client.post(url, headers=owner, json={"allow_context": True}).status_code == 200
-    receipt = agent_plugins.read_receipt(runtime.state_dir, "codex")
+    receipt = agents.read_receipt(runtime.state_dir, "codex")
     grant = {"id": receipt["grant_id"]}
     headers = {"Authorization": "Bearer " + grant_token(runtime, grant)}
     assert client.get("/api/agent/status", headers=headers).json()["kind"] == "context"
@@ -187,7 +188,7 @@ def test_context_search_crosses_projects_and_agents_with_new_scope(client, runti
 
 
 def test_bundle_directory_symlink_does_not_write_outside_state(runtime, driver, tmp_path):
-    target = agent_plugins.directory(runtime.state_dir, "codex")
+    target = agents.directory(runtime.state_dir, "codex")
     target.parent.mkdir()
     outside = tmp_path / "outside"
     outside.mkdir()

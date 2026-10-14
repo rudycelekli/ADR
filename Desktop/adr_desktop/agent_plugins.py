@@ -9,14 +9,21 @@ import subprocess
 from pathlib import Path
 
 from . import hooks
-from .config import atomic_json, canonical, command_prefix, read_private_json, utcnow
+from .config import atomic_json, canonical, command_prefix, utcnow
 from .guard import install_guard, publish_target
+from .integrations.agents import (
+    HARNESS_LABELS,
+    PLUGIN_NAME,
+    SCHEMA,
+    _bundle_root,
+    check_location,
+    directory,
+    read_receipt,
+)
 from .store import new_id
 
-PLUGIN_NAME = "adr-agent"
 CONTEXT_SERVER = "adr_context"
 AGENT_SERVER = "adr"
-SCHEMA = 1
 AGENT_GUIDE = """---
 name: adr
 description: Search local agent conversations and use saved credentials without exposing values to the model.
@@ -48,83 +55,6 @@ permission to make unrelated changes or requests.
 """
 
 
-def directory(state_dir: Path, harness: str) -> Path:
-    if harness not in hooks.HARNESS_LABELS:
-        raise ValueError("Unknown ADR agent integration")
-    return state_dir / "agent-plugins" / harness
-
-
-def check_location(state_dir, harness):
-    for parent in (directory(state_dir, harness), *directory(state_dir, harness).parents):
-        if parent == state_dir:
-            break
-        if parent.is_symlink():
-            raise ValueError("The ADR integration directory must not contain symlinks")
-
-
-def read_receipt(state_dir: Path, harness: str):
-    check_location(state_dir, harness)
-    file = directory(state_dir, harness) / "installation.json"
-    if not file.exists():
-        return None
-    value = read_private_json(file, maximum=128 * 1024)
-    if value.get("schema") != SCHEMA or value.get("harness") != harness:
-        raise ValueError("The saved ADR integration needs manual review")
-    return value
-
-
-def _bundle_root(state_dir, harness):
-    return directory(state_dir, harness) / "catalog" / "plugins" / PLUGIN_NAME
-
-
-def bundle_matches(root: Path, receipt: dict) -> bool:
-    try:
-        for relative, digest in receipt["files"].items():
-            relative = Path(relative)
-            if relative.is_absolute() or ".." in relative.parts:
-                return False
-            file = root / relative
-            if file.is_symlink() or file.stat().st_size > 1024 * 1024:
-                return False
-            if hashlib.sha256(file.read_bytes()).hexdigest() != digest:
-                return False
-        return bool(receipt["files"])
-    except (OSError, ValueError, KeyError, TypeError):
-        return False
-
-
-def configured(state_dir, harness):
-    try:
-        receipt = read_receipt(state_dir, harness)
-        return bool(
-            receipt
-            and receipt.get("status") == "configured"
-            and bundle_matches(_bundle_root(state_dir, harness), receipt)
-        )
-    except (OSError, ValueError):
-        return False
-
-
-def plugin_root(state_dir, harness):
-    """Use the root supplied by the native plugin host, not a model-supplied path."""
-    receipt = read_receipt(state_dir, harness)
-    if not receipt or receipt.get("status") != "configured":
-        return None
-    if harness == "opencode" and not hooks.installed(harness, state_dir=state_dir):
-        return None
-    value = (
-        os.environ.get("ADR_PLUGIN_ROOT")
-        if harness == "opencode"
-        else os.environ.get("CLAUDE_PLUGIN_ROOT")
-        or os.environ.get("PLUGIN_ROOT")
-        or os.environ.get("COPILOT_PLUGIN_ROOT")
-    )
-    if not value or not Path(value).is_absolute():
-        return None
-    root = Path(value).resolve()
-    return root if bundle_matches(root, receipt) else None
-
-
 class NativePluginDriver:
     """Run only the selected harness's documented local plugin commands."""
 
@@ -143,7 +73,7 @@ class NativePluginDriver:
         for candidate in candidates:
             if candidate.is_absolute() and candidate.is_file() and os.access(candidate, os.X_OK):
                 return str(candidate)
-        raise ValueError(f"Install {hooks.HARNESS_LABELS[harness]} before connecting ADR")
+        raise ValueError(f"Install {HARNESS_LABELS[harness]} before connecting ADR")
 
     def run(self, executable, *arguments):
         try:
@@ -344,7 +274,7 @@ def connect(runtime, harness, *, allow_context, allow_credentials=False, driver=
             existing["id"]
             if not created
             else runtime.create_grant(
-                f"{hooks.HARNESS_LABELS[harness]} · ADR",
+                f"{HARNESS_LABELS[harness]} · ADR",
                 kind="agent" if unified else "context",
                 confirm_device_history=True,
                 confirm_agent=unified,
@@ -401,7 +331,7 @@ def connect(runtime, harness, *, allow_context, allow_credentials=False, driver=
             raise
         if created and existing:
             runtime.revoke_grant(existing["id"])
-        runtime.store.audit("integration_connected", f"Connected ADR to {hooks.HARNESS_LABELS[harness]}")
+        runtime.store.audit("integration_connected", f"Connected ADR to {HARNESS_LABELS[harness]}")
         return {
             "harness": harness, "status": "configured", "context": True,
             "credentials": unified, "restart_required": True,
@@ -414,7 +344,7 @@ def connect_all(runtime, *, allow_agents, driver=None):
         raise ValueError("Confirm connecting installed agents to ADR history and saved credentials")
     driver = driver or NativePluginDriver()
     results = []
-    for harness in hooks.HARNESS_LABELS:
+    for harness in HARNESS_LABELS:
         try:
             driver.executable(harness)
         except (OSError, ValueError):
@@ -450,7 +380,7 @@ def disconnect(runtime, harness, *, driver=None):
         record["status"] = "disconnected"
         atomic_json(directory(runtime.state_dir, harness) / "installation.json", record)
         runtime.store.audit(
-            "integration_disconnected", f"Disconnected ADR from {hooks.HARNESS_LABELS[harness]}"
+            "integration_disconnected", f"Disconnected ADR from {HARNESS_LABELS[harness]}"
         )
         return {"harness": harness, "status": "disconnected", "context": False}
 
