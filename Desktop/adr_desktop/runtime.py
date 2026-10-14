@@ -23,7 +23,8 @@ from .config import (
 )
 from .environment_vault import EnvironmentVault
 from .guard import GUARD_VERSION, publish_target, upgrade_guard
-from .hooks import HARNESS_LABELS, configuration_path, installed
+from .hooks import installed
+from .integrations.agents import HARNESS_LABELS, configuration_path, configured, read_receipt
 from .native import NativeBridge
 from .policy import project_path, validate_rule
 from .presets import STARTER_ID, starter_preview
@@ -381,7 +382,7 @@ class Runtime:
         self.store.audit("agent_revoked", "Agent access revoked", {"id": identifier})
 
     def status(self):
-        from .agent_plugins import NativePluginDriver, configured, read_receipt
+        from .agent_plugins import NativePluginDriver
 
         self.broker.expire()
         settings = self.store.settings()

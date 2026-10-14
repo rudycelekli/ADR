@@ -17,9 +17,9 @@ from playwright.sync_api import expect, sync_playwright
 from qa_support import browser_evidence, isolated_agent_profile
 from ui_qa import SyntheticNative, SyntheticPluginDriver
 
-from adr_desktop.agent_plugins import read_receipt
 from adr_desktop.api import create_app
 from adr_desktop.config import prepare_state_dir
+from adr_desktop.integrations.agents import read_receipt
 from adr_desktop.runtime import Runtime
 
 

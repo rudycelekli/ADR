@@ -413,7 +413,7 @@ def test_final_hook_refreshes_plugin_control_path(runtime, tmp_path, monkeypatch
         "id": "fixture", "path": str(path), "kind": "file", "action": "ask", "label": "fixture",
     }]
     changed = False
-    monkeypatch.setattr("adr_desktop.agent_plugins.plugin_root", lambda *_: root if changed else None)
+    monkeypatch.setattr("adr_desktop.hooks.plugin_root", lambda *_: root if changed else None)
 
     def approve(_payload):
         nonlocal changed

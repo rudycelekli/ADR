@@ -28,11 +28,11 @@ FORBIDDEN = (
     "adr_discovery",
 )
 
-# Loaded today by imports that run while the hook works: the pre-tool entry
-# reaches the store through agent_plugins, the prompt entry through
-# environment_vault, and the store loads Sensor through conversation_view.
-# This list only shrinks: delete an entry once the hook stops loading it.
-KNOWN_LOADS = ("adr_desktop.store", "adr_sensor")
+# Loaded today by imports that run while the hook works: the prompt entry
+# reaches the store through environment_vault, and the store loads Sensor
+# through conversation_view. These lists only shrink: delete an entry once
+# the hook stops loading it.
+KNOWN_LOADS = {"pre": (), "prompt": ("adr_desktop.store", "adr_sensor")}
 
 
 def loaded_modules(stderr):
@@ -72,7 +72,8 @@ def test_hook_process_loads_no_forbidden_module(runtime, phase, event, decision)
     assert (result.returncode, result.stdout) == (0, decision + "\n")
     modules = loaded_modules(result.stderr)
     assert ("adr_desktop.prompt_guard" if phase == "prompt" else "adr_desktop.hooks") in modules
+    known = KNOWN_LOADS[phase]
     loaded = sorted(name for name in modules if any(within(name, prefix) for prefix in FORBIDDEN))
-    assert [name for name in loaded if not any(within(name, prefix) for prefix in KNOWN_LOADS)] == []
-    still_loaded = [prefix for prefix in KNOWN_LOADS if any(within(name, prefix) for name in loaded)]
-    assert still_loaded == list(KNOWN_LOADS), "Remove the entries the hook no longer loads"
+    assert [name for name in loaded if not any(within(name, prefix) for prefix in known)] == []
+    still_loaded = [prefix for prefix in known if any(within(name, prefix) for name in loaded)]
+    assert still_loaded == list(known), "Remove the entries the hook no longer loads"

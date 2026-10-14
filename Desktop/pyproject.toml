@@ -80,3 +80,13 @@ forbidden_modules = [
     "adr_desktop.security_reviews",
     "adr_discovery",
 ]
+
+[[tool.importlinter.contracts]]
+name = "Hooks, agent plugins, MCP trust and artifact identity get agent facts from integrations.agents, with no cycle"
+type = "layers"
+layers = [
+    "adr_desktop.agent_plugins",
+    "adr_desktop.hooks",
+    "adr_desktop.mcp_trust : adr_desktop.artifact_identity",
+    "adr_desktop.integrations.agents",
+]

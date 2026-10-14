@@ -23,6 +23,7 @@ import uvicorn
 from adr_desktop import agent_plugins
 from adr_desktop.api import create_app
 from adr_desktop.config import atomic_json, prepare_state_dir, utcnow
+from adr_desktop.integrations import agents
 from adr_desktop.runtime import Runtime
 
 
@@ -100,7 +101,7 @@ def main():
             runtime = Runtime(state, start_collectors=False)
             if args.install:
                 agent_plugins.connect(runtime, "codex", allow_context=True, driver=driver)
-                record = agent_plugins.read_receipt(state, "codex")
+                record = agents.read_receipt(state, "codex")
             else:
                 grant = runtime.create_grant(
                     "Synthetic Codex test", kind="context", confirm_device_history=True
@@ -112,7 +113,7 @@ def main():
                     "status": "configured", "updated_at": utcnow(), "files": files,
                     "market_registered": False,
                 }
-                atomic_json(agent_plugins.directory(state, "codex") / "installation.json", record)
+                atomic_json(agents.directory(state, "codex") / "installation.json", record)
         (project / "public.txt").write_text("ADR_PUBLIC_FIXTURE\n")
         (project / "protected.txt").write_text("ADR_BLOCKED_FIXTURE\n")
         (project / "approval.txt").write_text("ADR_APPROVAL_FIXTURE\n")
@@ -139,7 +140,7 @@ def main():
         })
         fixture = {
             "project": str(project),
-            "catalog": str(agent_plugins.directory(state, "codex") / "catalog"),
+            "catalog": str(agents.directory(state, "codex") / "catalog"),
             "market": record["market"],
         }
         print(f"Synthetic fixture: {root}", flush=True)
@@ -161,7 +162,7 @@ def main():
             # Revoke every synthetic grant, including a partially failed install.
             for grant in runtime.store.rows("SELECT id FROM grants WHERE revoked=0"):
                 runtime.revoke_grant(grant["id"])
-            record = record or agent_plugins.read_receipt(state, "codex")
+            record = record or agents.read_receipt(state, "codex")
             if args.install and record:
                 try:
                     agent_plugins.disconnect(runtime, "codex", driver=driver)
