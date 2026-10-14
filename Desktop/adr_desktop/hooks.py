@@ -11,6 +11,7 @@ from pathlib import Path
 
 from .config import command_prefix, utcnow
 from .credential_activity import NATIVE_SESSION_ID, credential_command, result_run_ids
+from .detection.inline.credentials import VAULT_MESSAGE, check_file, detect_credentials
 from .detection.operation import DIRECT_TOOLS, SHELL_TOOLS
 from .guard import _atomic_bytes, install_guard, publish_target
 from .integrations.agents import (
@@ -24,7 +25,6 @@ from .local_client import request
 from .mcp_trust import trusted_grant_id
 from .policy import DENIAL_REASONS, Decision, event_fields, hook_output
 from .protection import evaluate_operation
-from .secret_guard import VAULT_MESSAGE, check_file, detect_credentials
 from .storage.files import MAX_JSON_BYTES, atomic_json, canonical, read_private_json, strict_json
 
 MARKER = "adr-desktop-file-guard"

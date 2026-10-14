@@ -7,11 +7,11 @@ import time
 from pathlib import Path
 
 from .config import utcnow
+from .detection.inline.credentials import detect_credentials, detect_prompt_credentials, find_credentials
 from .detection.operation import resolve_path
 from .local_client import SAFE_ERRORS
 from .native import NativeTimedOut, NativeUnavailable
 from .protection import evaluate_operation
-from .secret_guard import detect_credentials, detect_prompt_credentials
 from .storage.files import atomic_json, canonical
 from .storage.ids import new_id
 
@@ -82,6 +82,36 @@ def validate_entry(name, env_name):
     ):
         raise ValueError("Choose a credential variable such as MY_PASSWORD, not a process-control variable")
     return name, env_name
+
+
+class NativeSavedValues:
+    """Fills detection's SavedValueCheck: the native vault compares text with the listed saved values."""
+
+    def __init__(self, native, environment_ids, service_ids):
+        self.native = native
+        self.environment_ids, self.service_ids = environment_ids, service_ids
+
+    def check(self, text, purpose):
+        if not self.environment_ids and not self.service_ids:
+            return False, []
+        if not self.native.connected:
+            raise NativeUnavailable()
+        checked = self.native.call(
+            "vault_check_text",
+            {
+                "text": text, "environment_ids": self.environment_ids, "service_ids": self.service_ids,
+                "purpose": purpose,
+            },
+            timeout=2,
+        )
+        if checked.get("checked") is not True:
+            raise NativeUnavailable()
+        aliases = [
+            name
+            for name in checked.get("aliases", [])
+            if isinstance(name, str) and ENV_NAME.fullmatch(name)
+        ]
+        return bool(checked.get("matched")), aliases
 
 
 class EnvironmentVault:
@@ -176,44 +206,25 @@ class EnvironmentVault:
     def check_prompt(self, prompt, harness, *, record=True):
         if not isinstance(prompt, str) or len(prompt.encode()) > PROMPT_LIMIT:
             return {"blocked": True, "message": UNAVAILABLE_MESSAGE}
-        kinds = detect_prompt_credentials(prompt) if record else detect_credentials(prompt)
-        aliases = []
         ids = [row["id"] for row in self.entries() if row["state"] == "active"]
         # Include existing API credentials without granting execution access to them.
         service_ids = [row["id"] for row in self.runtime.broker.credentials() if row["state"] == "active"]
-        if ids or service_ids:
-            try:
-                if not self.native.connected:
-                    raise NativeUnavailable()
-                checked = self.native.call(
-                    "vault_check_text",
-                    {
-                        "text": prompt, "environment_ids": ids, "service_ids": service_ids,
-                        "purpose": "prompt" if record else "output",
-                    },
-                    timeout=2,
-                )
-                if checked.get("checked") is not True:
-                    raise NativeUnavailable()
-                aliases = [
-                    name
-                    for name in checked.get("aliases", [])
-                    if isinstance(name, str) and ENV_NAME.fullmatch(name)
-                ]
-                if checked.get("matched"):
-                    kinds.append("Saved credential")
-            except Exception as error:
-                # Closed, content-free diagnostics. Availability is not evidence
-                # of a pasted secret, and the agent must not be told otherwise.
-                code = "credential_check_unavailable"
-                if isinstance(error, NativeTimedOut):
-                    code = "credential_check_timeout"
-                elif isinstance(error, NativeUnavailable) and str(error) in SAFE_ERRORS:
-                    code = str(error)
-                return {
-                    "blocked": True, "unavailable": True, "reason_code": code,
-                    "message": UNAVAILABLE_MESSAGE,
-                }
+        try:
+            kinds, aliases = find_credentials(
+                prompt, NativeSavedValues(self.native, ids, service_ids), prompt=record,
+            )
+        except Exception as error:
+            # Closed, content-free diagnostics. Availability is not evidence
+            # of a pasted secret, and the agent must not be told otherwise.
+            code = "credential_check_unavailable"
+            if isinstance(error, NativeTimedOut):
+                code = "credential_check_timeout"
+            elif isinstance(error, NativeUnavailable) and str(error) in SAFE_ERRORS:
+                code = str(error)
+            return {
+                "blocked": True, "unavailable": True, "reason_code": code,
+                "message": UNAVAILABLE_MESSAGE,
+            }
         if not kinds:
             return {"blocked": False, "message": ""}
         if record:

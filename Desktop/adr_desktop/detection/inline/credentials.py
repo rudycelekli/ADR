@@ -5,7 +5,8 @@ import re
 import stat
 from pathlib import Path
 
-from .storage.files import MAX_JSON_BYTES, canonical
+from ...storage.files import MAX_JSON_BYTES, canonical
+from ..ports import SavedValueCheck
 
 PATTERNS = (
     ("GitHub token", re.compile(rb"\b(?:gh[pousr]_[A-Za-z0-9]{36,255}|github_pat_[A-Za-z0-9_]{60,255})\b")),
@@ -89,3 +90,16 @@ def check_file(path: Path) -> list[str]:
             raise ValueError("This file cannot be checked safely")
         raw = handle.read(MAX_JSON_BYTES + 1)
     return detect_credentials(raw)
+
+
+def find_credentials(text: str, saved: SavedValueCheck, *, prompt: bool) -> tuple[list[str], list[str]]:
+    """Credential kinds in text, the owner's saved values included, and the names of the saved ones.
+
+    A prompt is also checked for explicit password assignments. Raises when the saved values
+    cannot be checked: an unchecked text is not a clean one.
+    """
+    kinds = detect_prompt_credentials(text) if prompt else detect_credentials(text)
+    matched, names = saved.check(text, "prompt" if prompt else "output")
+    if matched:
+        kinds.append("Saved credential")
+    return kinds, names

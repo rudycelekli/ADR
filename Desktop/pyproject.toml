@@ -9,7 +9,6 @@ description = "Local-first agent insights, file protection, and credential broke
 requires-python = ">=3.11"
 license = "Apache-2.0"
 dependencies = [
-    "adr-protection==0.1.0",
     "adr-sensor==1.1.0",
     "fastapi>=0.115,<1",
     "uvicorn>=0.30,<1",
@@ -25,14 +24,13 @@ dev = [
 adr-desktop = "adr_desktop.cli:main"
 
 [tool.uv.sources]
-adr-protection = { path = "../Protection", editable = true }
 adr-sensor = { path = "../Sensor", editable = true }
 
 [tool.setuptools.packages.find]
 include = ["adr_desktop*"]
 
 [tool.setuptools.package-data]
-adr_desktop = ["web/*", "native/*.c", "bin/*", "adapters/*.js", "plugins/*.json", "data/*.json"]
+adr_desktop = ["web/*", "native/*.c", "bin/*", "adapters/*.js", "plugins/*.json", "detection/inline/feed/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -47,19 +45,19 @@ target-version = "py311"
 select = ["E", "F", "I"]
 
 [tool.importlinter]
-root_packages = ["adr_desktop", "adr_sensor", "adr_discovery", "adr_protection"]
+root_packages = ["adr_desktop", "adr_sensor", "adr_discovery"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-name = "Sensor, Discovery and Protection do not import Desktop"
+name = "Sensor and Discovery do not import Desktop"
 type = "forbidden"
-source_modules = ["adr_sensor", "adr_discovery", "adr_protection"]
+source_modules = ["adr_sensor", "adr_discovery"]
 forbidden_modules = ["adr_desktop"]
 
 [[tool.importlinter.contracts]]
-name = "Sensor, Discovery and Protection do not import each other"
+name = "Sensor and Discovery do not import each other"
 type = "independence"
-modules = ["adr_sensor", "adr_discovery", "adr_protection"]
+modules = ["adr_sensor", "adr_discovery"]
 
 [[tool.importlinter.contracts]]
 name = "Desktop uses Sensor and Discovery only through their api modules"

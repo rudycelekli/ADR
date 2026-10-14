@@ -6,10 +6,10 @@ import subprocess
 import urllib.request
 from dataclasses import FrozenInstanceError
 
-import adr_protection.artifacts as threat_feed
 import pytest
 
-from adr_desktop.threat_feed import (
+import adr_desktop.detection.inline.feed.engine as threat_feed
+from adr_desktop.detection.inline.feed.api_v1 import (
     BUNDLED_FEED_ID,
     MAX_FEED_BYTES,
     MAX_GENERATION_BYTES,
@@ -17,7 +17,6 @@ from adr_desktop.threat_feed import (
     compile_generation,
     compose_generation,
     generation_summary,
-    load_bundled_feed,
     match_subject,
     normalize_endpoint,
     normalize_package_name,
@@ -26,6 +25,7 @@ from adr_desktop.threat_feed import (
     validate_feed,
     validate_generation,
 )
+from adr_desktop.threat_feed import load_bundled_feed
 
 # Synthetic benign bytes, never presented as public threat intelligence.
 SYNTHETIC_DIGEST = hashlib.sha256(b"ADR synthetic artifact test\n").hexdigest()

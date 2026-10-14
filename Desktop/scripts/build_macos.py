@@ -38,13 +38,14 @@ def required_python_modules():
     required = {
         "adr_desktop.api", "adr_desktop.security_reviews",
         "adr_desktop.detection.contracts", "adr_desktop.detection.operation", "adr_desktop.detection.ports",
+        "adr_desktop.detection.inline.credentials", "adr_desktop.detection.inline.feed.api_v1",
+        "adr_desktop.detection.inline.feed.contracts", "adr_desktop.detection.inline.feed.engine",
         "adr_desktop.detection.review.coordinator", "adr_desktop.detection.review.quota",
         "adr_desktop.detection.review.runners", "adr_desktop.detection.review.supervisor",
         "adr_desktop.detection.review.usage",
         "adr_desktop.integrations.agents",
         "adr_desktop.storage.database", "adr_desktop.storage.files", "adr_desktop.storage.ids",
         "adr_discovery.api", "adr_discovery.pipeline", "adr_discovery.coverage.report",
-        "adr_protection.api_v1", "adr_protection.artifacts", "adr_protection.contracts",
         "adr_sensor.api", "adr_sensor.observer", "tabulate", "zstandard",
     }
     # Sensor parsers are dynamically selected at runtime. A successful UI
@@ -72,7 +73,7 @@ def verify_python_bundle(core):
         capture_output=True, text=True, check=True, timeout=30,
     )
     validate_python_modules(result.stdout)
-    print("Verified the bundled Desktop, Protection, Discovery, Sensor parsers and runtime dependencies.")
+    print("Verified the bundled Desktop, Discovery, Sensor parsers and runtime dependencies.")
 
 
 def run(*arguments):
@@ -138,8 +139,6 @@ def main():
             ROOT,
             "--paths",
             ROOT.parent / "Sensor",
-            "--paths",
-            ROOT.parent / "Protection",
             "--collect-data",
             "adr_desktop",
             "--collect-data",

@@ -23,19 +23,19 @@ flowchart LR
 | --- | --- | --- |
 | Activity capture | [Sensor](../../Sensor/): normalized agent events | The [collector](../adr_desktop/collector.py) schedules one Sensor pass; the host retains original snapshots and provides scoped search and presentation. |
 | AI inventory | [Discovery](../../Sensor/DISCOVERY.md): snapshot and coverage records through `adr_discovery.api` | Request a bounded scan, persist results, paginate them, [explain access limits](../adr_desktop/access_status.py). Inventory is not prevention. |
-| Artifact intelligence | [Protection](../../Protection/): offline artifact API v1 | [Artifact coordination](../adr_desktop/threat_protection.py) supplies the reviewed baseline/custom feed, authorizes imports, publishes policy, and stores findings. The host establishes identity and enforces decisions. |
+| Artifact intelligence | Detection's [feed engine](../adr_desktop/detection/inline/feed/): offline artifact API v1 and the reviewed baseline feed | [Artifact coordination](../adr_desktop/threat_protection.py) supplies the reviewed baseline/custom feed, authorizes imports, publishes policy, and stores findings. The host establishes identity and enforces decisions. |
 | File protection | File-policy extraction is tracked separately | [Policy](../adr_desktop/policy.py), [operation parsing](../adr_desktop/detection/operation.py) and [operation evaluation](../adr_desktop/protection.py) currently live in Desktop. Harness adapters, trust resolution, approvals, guarded execution, and closed deny reasons stay host responsibilities. |
 | Security reviews | Review-service extraction is tracked separately | Detection's review part holds the [review coordinator](../adr_desktop/detection/review/coordinator.py) (evidence, report validation, budgets, storage, scheduling) and the [CLI runners](../adr_desktop/detection/review/runners.py) with their isolation, watchdog, quota and usage. It reads captured sessions and device-idle time through [ports](../adr_desktop/detection/ports.py). Desktop keeps [consent, settings](../adr_desktop/security_reviews.py) and the credential check. These reviews are not the full `Detection/` benchmark pipeline. |
-| Credentials | Native operation boundary plus a future metadata/coordinator interface | [Native vault code](../native/vault/) owns secret entry, encryption, operations, and output filtering. Python [environment](../adr_desktop/environment_vault.py) and [API-only](../adr_desktop/broker.py) coordinators handle metadata, grants, policy, and audit—not a raw-value retrieval API. |
+| Credentials | Native operation boundary plus a future metadata/coordinator interface | [Native vault code](../native/vault/) owns secret entry, encryption, operations, and output filtering. Python [environment](../adr_desktop/environment_vault.py) and [API-only](../adr_desktop/broker.py) coordinators handle metadata, grants, policy, and audit—not a raw-value retrieval API. Detection's [credential and prompt patterns](../adr_desktop/detection/inline/credentials.py) reach saved values only through the `SavedValueCheck` [port](../adr_desktop/detection/ports.py), which the environment coordinator fills through the native vault. |
 | History and projections | Sensor/Discovery artifacts and future query-service interfaces | [Storage](../adr_desktop/storage/) holds the shared database connection, transactions, schema registration, stable IDs, and private profile files; it has no feature tables. The [store](../adr_desktop/store.py) owns immutable captures, derived indexes, and retention. The host authorizes access. |
 
 The first extracted implementation is the artifact engine. Other rows explicitly describe current ownership or planned work; they are not claims that every feature has already been separated. Host module links identify where to work today, not new stable library APIs.
 
 ## Contributor-facing contract
 
-The first stable library entry point is `adr_protection.api_v1`. It accepts supplied JSON-shaped data and returns validated data or matches. It does not accept Desktop's `Runtime`, open the profile, discover files, launch processes, call a model, or make network requests.
+The first stable library entry point is `adr_desktop.detection.inline.feed.api_v1`. It accepts supplied JSON-shaped data and returns validated data or matches. It does not accept Desktop's `Runtime`, open the profile, discover files, launch processes, call a model, or make network requests.
 
-Its feed and generation schemas retain version 1. A compiled matcher can be reused for many lookups; import and construction do not create background work. See the [Protection contract](../../Protection/README.md#public-contract) for supported functions and compatibility rules.
+Its feed and generation schemas retain version 1. A compiled matcher can be reused for many lookups; import and construction do not create background work. See [`api_v1`](../adr_desktop/detection/inline/feed/api_v1.py) for supported functions and [`contracts.py`](../adr_desktop/detection/inline/feed/contracts.py) for the typed records. The golden fixture `tests/fixtures/artifact_v1.json` keeps the expected generation digest and match rows; do not regenerate it to make a changed engine pass.
 
 New components should follow the same pattern:
 
@@ -63,7 +63,7 @@ There is no universal version number for every boundary. A package version, a fe
 
 The artifact v1 input schemas are intentionally closed. Changing accepted fields, interpretation, enum values, normalization, ordering, digest bytes, or failure behavior requires an explicit compatibility decision and, for incompatible changes, a new contract version. Adding an unrelated new API need not change existing v1 calls.
 
-Every extraction includes old-caller tests, fixed expected outputs, standalone package tests, and frozen-build checks. `adr_desktop.threat_feed` remains a compatibility adapter rather than a duplicate implementation. No database or permission migration is required for this first step.
+Every extraction includes old-caller tests, fixed expected outputs, standalone package tests, and frozen-build checks. `adr_desktop.threat_feed` only selects the bundled baseline feed; the engine is not duplicated. No database or permission migration is required for this first step.
 
 ## Why the prototype was composed this way
 

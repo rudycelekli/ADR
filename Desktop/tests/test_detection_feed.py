@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from adr_protection import api_v1
+from adr_desktop.detection.inline.feed import api_v1
 
 FIXTURE = Path(__file__).parent / "fixtures" / "artifact_v1.json"
 

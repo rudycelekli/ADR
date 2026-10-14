@@ -1,27 +1,28 @@
 import json
-
-from adr_protection import api_v1
+from pathlib import Path
 
 from adr_desktop import threat_feed
+from adr_desktop.detection.inline import feed
+from adr_desktop.detection.inline.feed import api_v1
 from adr_desktop.protection import evaluate_operation
 
 
-def test_desktop_adapter_reuses_the_public_component_without_duplicate_logic():
-    for name in threat_feed.__all__:
-        if name != "load_bundled_feed":
-            assert getattr(threat_feed, name) is getattr(api_v1, name)
+def test_desktop_feed_adapter_only_selects_the_reviewed_baseline_that_ships_with_detection():
+    assert threat_feed.__all__ == ["load_bundled_feed"]
+    baseline = Path(feed.__file__).parent / "malicious_artifacts.json"
+    assert threat_feed.load_bundled_feed() == api_v1.parse_feed_json(baseline.read_bytes())
 
 
 def test_existing_baseline_and_serialized_policy_generation_keep_their_contract():
     baseline = threat_feed.load_bundled_feed()
-    generation = threat_feed.compose_generation(baseline)
+    generation = api_v1.compose_generation(baseline)
     restored = json.loads(json.dumps(generation))
     assert api_v1.validate_generation(restored) == generation
     subject = {
         "kind": "package", "ecosystem": "npm", "registry": "https://registry.npmjs.org",
         "name": "postmark-mcp", "version": "1.0.16",
     }
-    assert api_v1.compile_generation(restored).match(subject) == threat_feed.match_subject(
+    assert api_v1.compile_generation(restored).match(subject) == api_v1.match_subject(
         generation, subject,
     )
 

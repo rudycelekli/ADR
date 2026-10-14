@@ -33,9 +33,7 @@ jobs:
           save-cache: "true"
       - name: Python lint
         working-directory: Desktop
-        run: |
-          uv run --locked ruff check adr_desktop tests scripts
-          uv run --locked ruff check --config ../Protection/pyproject.toml ../Protection/adr_protection ../Protection/tests
+        run: uv run --locked ruff check adr_desktop tests scripts
       - name: Import boundaries
         working-directory: Desktop
         run: uv run --locked lint-imports
@@ -98,7 +96,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        component: [Sensor, Protection]
+        component: [Sensor]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -110,20 +108,6 @@ jobs:
       - name: Run the component's complete test suite
         working-directory: ${{ matrix.component }}
         run: uv run --locked pytest -q --junitxml=test-results/component.xml
-      - name: Verify a standalone non-editable Protection wheel
-        if: matrix.component == 'Protection'
-        shell: bash
-        run: |
-          adr_smoke="$PWD/Protection/tests/wheel_smoke.py"
-          adr_wheels=$(mktemp -d "$RUNNER_TEMP/adr-protection-wheel.XXXXXX")
-          uv build --project Protection --out-dir "$adr_wheels"
-          adr_artifacts=("$adr_wheels"/*.whl)
-          test "${#adr_artifacts[@]}" -eq 1
-          adr_wheel_env="$adr_wheels/venv"
-          uv venv --python 3.11 "$adr_wheel_env"
-          uv pip install --python "$adr_wheel_env/bin/python" --no-deps "${adr_artifacts[0]}"
-          cd "$adr_wheels"
-          "$adr_wheel_env/bin/python" -I "$adr_smoke"
       - name: Verify a standalone non-editable Sensor wheel
         if: matrix.component == 'Sensor'
         shell: bash

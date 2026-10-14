@@ -3,10 +3,10 @@
 from pathlib import Path
 
 from .artifact_identity import READ_TOOLS, identify_event
+from .detection.inline.feed.api_v1 import compile_generation
 from .detection.operation import PATH_KEYS
 from .mcp_trust import trusted_tool
 from .policy import DENIAL_REASONS, Decision, evaluate, event_fields
-from .threat_feed import compile_generation
 
 
 def evaluate_operation(event, harness, snapshot, *, state_dir, allow_adr_trust=True,
