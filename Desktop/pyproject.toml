@@ -17,7 +17,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "httpx>=0.28", "ruff>=0.11", "pyinstaller>=6.16,<7", "playwright>=1.55,<2"]
+dev = [
+    "pytest>=8", "httpx>=0.28", "ruff>=0.11", "pyinstaller>=6.16,<7", "playwright>=1.55,<2",
+    "import-linter>=2.1,<3",
+]
 
 [project.scripts]
 adr-desktop = "adr_desktop.cli:main"
@@ -44,3 +47,36 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
+
+[tool.importlinter]
+root_packages = ["adr_desktop", "adr_sensor", "adr_discovery", "adr_protection"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Sensor, Discovery and Protection do not import Desktop"
+type = "forbidden"
+source_modules = ["adr_sensor", "adr_discovery", "adr_protection"]
+forbidden_modules = ["adr_desktop"]
+
+[[tool.importlinter.contracts]]
+name = "Sensor, Discovery and Protection do not import each other"
+type = "independence"
+modules = ["adr_sensor", "adr_discovery", "adr_protection"]
+
+[[tool.importlinter.contracts]]
+name = "The hook does not import the server, runtime, API, review code or Discovery"
+type = "forbidden"
+source_modules = ["adr_desktop.hooks", "adr_desktop.prompt_guard"]
+forbidden_modules = [
+    "fastapi",
+    "uvicorn",
+    "starlette",
+    "adr_desktop.runtime",
+    "adr_desktop.api",
+    "adr_desktop.review_process",
+    "adr_desktop.review_quota",
+    "adr_desktop.review_supervisor",
+    "adr_desktop.review_usage",
+    "adr_desktop.security_reviews",
+    "adr_discovery",
+]

@@ -16,7 +16,7 @@ to `main` or change the default branch to enable it.
 
 | Check | Coverage |
 | --- | --- |
-| Lint and workflow validation | Python lint, browser/adapter JavaScript syntax, actionlint, and unchanged lockfiles |
+| Lint and workflow validation | Python lint, import boundaries (import-linter), browser/adapter JavaScript syntax, actionlint, and unchanged lockfiles |
 | Desktop tests | The full unit/API/guardian/synthetic CLI suite on Linux with Python 3.11 and 3.13, and macOS with Python 3.11 |
 | Shared component tests | Complete Sensor, Discovery, and Protection suites in their own locked environments; the Protection wheel is also installed and exercised outside the checkout without Desktop |
 | Browser workflows | Fresh-profile setup and consent, overview, navigation, session retrieval, credential-to-session links, malicious artifacts, and Security reviews, using real loopback APIs and synthetic data |
@@ -106,6 +106,7 @@ From `Desktop/`:
 ```sh
 uv sync --locked --extra dev --python 3.11
 uv run --locked ruff check adr_desktop tests scripts
+uv run --locked lint-imports
 uv run --locked pytest -q
 uv run --locked python -m playwright install chromium
 uv run --locked python scripts/ui_qa.py --output test-results/ui
