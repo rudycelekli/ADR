@@ -161,13 +161,13 @@ def main():
         sources = [
             ROOT / "native" / name
             for name in (
-                "HTTPTransport.swift",
-                "LocalVault.swift",
-                "LocalVaultSelfTests.swift",
+                "vault/HTTPTransport.swift",
+                "vault/LocalVault.swift",
+                "vault/LocalVaultSelfTests.swift",
                 "FileAccess.swift",
-                "Vault.swift",
-                "EnvironmentVault.swift",
-                "VaultProcess.swift",
+                "vault/Vault.swift",
+                "vault/EnvironmentVault.swift",
+                "vault/VaultProcess.swift",
                 "SelfTests.swift",
                 "main.swift",
             )

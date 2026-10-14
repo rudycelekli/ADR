@@ -372,7 +372,7 @@ This sends only a fixed invalid synthetic value to GitHub, not a Keychain value:
 
 ```sh
 xcrun swiftc -swift-version 5 -O -framework Network -framework Security \
-  native/HTTPTransport.swift native/TransportSmoke.swift -o build/transport-smoke
+  native/vault/HTTPTransport.swift native/vault/TransportSmoke.swift -o build/transport-smoke
 build/transport-smoke
 ```
 
