@@ -7,9 +7,9 @@ import time
 from pathlib import Path
 
 from .config import atomic_json, canonical, utcnow
+from .detection.operation import resolve_path
 from .local_client import SAFE_ERRORS
 from .native import NativeTimedOut, NativeUnavailable
-from .policy import resolve_path
 from .protection import evaluate_operation
 from .secret_guard import detect_credentials, detect_prompt_credentials
 from .store import new_id

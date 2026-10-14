@@ -23,7 +23,7 @@ from .config import (
 )
 from .conversation_view import context_label, is_setup_message, recover_codex_metadata, session_title
 from .credential_activity import session_run_ids
-from .policy import project_path
+from .detection.operation import project_path
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
