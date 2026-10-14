@@ -19,8 +19,8 @@ from .guard import GUARD_VERSION, publish_target, upgrade_guard
 from .hooks import installed
 from .integrations.agents import HARNESS_LABELS, configuration_path, configured, read_receipt
 from .native import NativeBridge
-from .policy import validate_rule
-from .presets import STARTER_ID, starter_preview
+from .protection.policy import validate_rule
+from .protection.presets import STARTER_ID, starter_preview
 from .security_reviews import SecurityReviews
 from .storage.files import atomic_json, canonical, read_private_json
 from .storage.ids import new_id

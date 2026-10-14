@@ -289,7 +289,8 @@ def main(argv=None):
         return 0
     except Exception as error:
         if args.command == "hook":
-            from .policy import Decision, hook_output
+            from .integrations.events import hook_output
+            from .protection.contracts import Decision
 
             print(
                 "deny"

@@ -8,8 +8,15 @@ from pathlib import Path
 import pytest
 
 from adr_desktop.detection.operation import resolve_path
-from adr_desktop.policy import evaluate, hook_output, validate_rule
+from adr_desktop.integrations.events import event_operation, hook_output
+from adr_desktop.protection.policy import evaluate as evaluate_rules
+from adr_desktop.protection.policy import validate_rule
 from adr_desktop.storage.files import atomic_json
+
+
+def evaluate(event, harness, snapshot):
+    """Decode the agent event as Desktop does, then apply the file rules."""
+    return evaluate_rules(event_operation(event, harness), snapshot)
 
 
 def policy(path, action="block", kind="directory", **options):
@@ -107,7 +114,7 @@ def test_hard_link_to_protected_file_is_blocked(tmp_path):
 
 
 def test_macos_case_variation_is_conservatively_protected(tmp_path, monkeypatch):
-    monkeypatch.setattr("adr_desktop.policy.platform.system", lambda: "Darwin")
+    monkeypatch.setattr("adr_desktop.protection.policy.platform.system", lambda: "Darwin")
     assert (
         evaluate(
             event(str(tmp_path / "Private" / "secret").upper()), "claude", policy(tmp_path / "Private")

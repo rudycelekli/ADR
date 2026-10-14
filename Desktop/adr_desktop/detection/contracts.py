@@ -13,3 +13,4 @@ class Operation:
     cwd: str
     # The MCP server the agent says the tool belongs to, as the event gave it, or None.
     mcp_server: dict | None = None
+    session_id: str = ""

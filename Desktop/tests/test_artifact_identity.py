@@ -14,7 +14,7 @@ from adr_desktop.detection.inline.artifacts import (
     read_mcp_configurations,
 )
 from adr_desktop.integrations import agents
-from adr_desktop.policy import event_operation
+from adr_desktop.integrations.events import event_operation
 
 
 @pytest.fixture(autouse=True)

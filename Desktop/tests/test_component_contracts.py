@@ -4,7 +4,7 @@ from pathlib import Path
 from adr_desktop import threat_feed
 from adr_desktop.detection.inline import feed
 from adr_desktop.detection.inline.feed import api_v1
-from adr_desktop.protection import evaluate_operation
+from adr_desktop.evaluate import evaluate_operation
 
 
 def test_desktop_feed_adapter_only_selects_the_reviewed_baseline_that_ships_with_detection():

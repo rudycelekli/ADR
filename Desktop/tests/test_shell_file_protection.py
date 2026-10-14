@@ -7,7 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from adr_desktop.policy import evaluate
+from adr_desktop.integrations.events import event_operation
+from adr_desktop.protection.policy import evaluate as evaluate_rules
+
+
+def evaluate(event, harness, snapshot):
+    """Decode the agent event as Desktop does, then apply the file rules."""
+    return evaluate_rules(event_operation(event, harness), snapshot)
 
 
 def snapshot(path, *, action="block", strict=False):

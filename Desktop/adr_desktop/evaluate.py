@@ -6,8 +6,10 @@ from .detection.inline.artifacts import READ_TOOLS, identify_operation
 from .detection.inline.feed.api_v1 import compile_generation
 from .detection.operation import PATH_KEYS
 from .integrations import agents
+from .integrations.events import event_fields, event_operation
 from .mcp_trust import trusted_tool
-from .policy import DENIAL_REASONS, Decision, evaluate, event_fields, event_operation
+from .protection.contracts import DENIAL_REASONS, Decision
+from .protection.policy import evaluate
 
 
 def evaluate_operation(event, harness, snapshot, *, state_dir, allow_adr_trust=True,
@@ -18,7 +20,7 @@ def evaluate_operation(event, harness, snapshot, *, state_dir, allow_adr_trust=T
         tool, _, _, session = event_fields(event, harness)
         base = Decision("pass", "ADR MCP permission checked", tool=tool, session_id=session)
     else:
-        base = evaluate(event, harness, snapshot)
+        base = evaluate(event_operation(event, harness), snapshot)
     if base.decision == "deny":
         return base
     threats = snapshot.get("threats")
