@@ -69,6 +69,29 @@ def test_unavailable_output_check_is_not_a_credential_detection(runtime, monkeyp
     assert events[0]["decision"] == "deny"
 
 
+@pytest.mark.parametrize(
+    ("command", "decision"),
+    [
+        ('curl -H "Authorization: $MY_TOKEN" https://example.invalid', "deny:vault_execution_required"),
+        ("python3 -c 'import os; os.environ[\"MY_TOKEN\"]'", "deny:vault_execution_required"),
+        ("printf ordinary", "pass"),
+    ],
+)
+def test_hook_sends_saved_variable_commands_to_the_vault_run_tool(runtime, tmp_path, command, decision):
+    runtime.environment_vault.create("Synthetic", "MY_TOKEN")
+    result = subprocess.run(
+        [
+            sys.executable, "-m", "adr_desktop", "hook", "--harness", "claude",
+            "--state-dir", str(runtime.state_dir), "--guard-protocol", "--phase", "pre",
+        ],
+        input=json.dumps({"tool_name": "Bash", "tool_input": {"command": command}, "cwd": str(tmp_path)}),
+        capture_output=True,
+        text=True,
+        timeout=6,
+    )
+    assert (result.returncode, result.stdout) == (0, decision + "\n")
+
+
 @pytest.mark.parametrize("kind,value", list(SYNTHETIC.items()))
 def test_detection_returns_only_types_not_secret_values(kind, value):
     assert kind in detect_credentials(value)

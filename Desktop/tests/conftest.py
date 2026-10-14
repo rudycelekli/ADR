@@ -1,5 +1,7 @@
 import json
+import uuid
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -7,6 +9,9 @@ from fastapi.testclient import TestClient
 from adr_desktop.api import create_app
 from adr_desktop.runtime import Runtime
 from adr_desktop.storage.files import prepare_state_dir
+from adr_desktop.store import Store
+from adr_desktop.vault.broker import Broker
+from adr_desktop.vault.environment import EnvironmentVault
 
 
 class FakeNative:
@@ -82,6 +87,55 @@ class FakeNative:
         if operation == "open_access_settings":
             return {"request_accepted": True, "grants_access": False, "full_disk_access": "not_determined"}
         raise ValueError("Unsupported synthetic operation")
+
+
+class FakeGuard:
+    """Fake vault Guard: decides every command the same way, and the owner approves or declines."""
+
+    def __init__(self):
+        self.decision, self.artifact, self.approves = "pass", None, True
+        self.approvals = []
+
+    def evaluate(self, command, cwd, environment):
+        return SimpleNamespace(decision=self.decision, artifact=self.artifact)
+
+    def approve(self, agent, command, cwd, variables):
+        self.approvals.append({"agent": agent, "command": command, "cwd": cwd, "variables": variables})
+        if not self.approves:
+            raise PermissionError("Credential-backed command was not approved")
+
+
+class FakeGrants:
+    """Fake vault Grants: the grants Desktop issued and has not revoked."""
+
+    def __init__(self):
+        self.items = {}
+
+    def issue(self, credentials, *, kind="execution", project="", approval_mode="automatic", name="Agent"):
+        grant = {
+            "id": uuid.uuid4().hex, "name": name, "kind": kind, "project": project,
+            "credentials": json.dumps(credentials), "approval_mode": approval_mode,
+        }
+        self.items[grant["id"]] = grant
+        return grant
+
+    def active(self, grant_id):
+        return self.items.get(grant_id)
+
+
+@pytest.fixture
+def vault(tmp_path):
+    """Vault's entry points over fake ports, without Desktop's runtime."""
+    state = prepare_state_dir(tmp_path / "vault-state")
+    store = Store(state)
+    native, guard, grants = FakeNative(), FakeGuard(), FakeGrants()
+    broker = Broker(store, native, grants)
+    environment = EnvironmentVault(store, state, native, broker, guard, grants)
+    yield SimpleNamespace(
+        store=store, state_dir=state, native=native, guard=guard, grants=grants,
+        broker=broker, environment=environment,
+    )
+    store.close()
 
 
 class FakePluginDriver:

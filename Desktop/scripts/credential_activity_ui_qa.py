@@ -16,9 +16,9 @@ from ui_qa import SyntheticNative, seed
 
 from adr_desktop.api import create_app
 from adr_desktop.config import utcnow
-from adr_desktop.credential_activity import record_session
 from adr_desktop.runtime import Runtime
 from adr_desktop.storage.files import prepare_state_dir
+from adr_desktop.vault.audit import record_session
 
 NATIVE_SESSION = "11111111-2222-4333-8444-555555555555"
 TITLE = "Check a release with the saved credential"

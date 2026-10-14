@@ -7,11 +7,10 @@ import threading
 import time
 from urllib.parse import urlsplit
 
-from .config import utcnow
-from .local_client import SAFE_ERRORS
-from .native import NativeUnavailable
-from .storage.files import canonical
-from .storage.ids import new_id
+from ..storage.files import canonical
+from ..storage.ids import new_id
+from .contracts import SAFE_ERRORS, NativeUnavailable, utcnow
+from .ports import Grants, NativeVault
 
 PATH_RE = re.compile(r"/[A-Za-z0-9/_@.:\-~]*")
 HEADER_RE = re.compile(r"[A-Za-z][A-Za-z0-9-]{0,63}")
@@ -125,9 +124,10 @@ def validate_profile(value: dict) -> dict:
 
 
 class Broker:
-    def __init__(self, store, native):
+    def __init__(self, store, native: NativeVault, grants: Grants):
         self.store = store
         self.native = native
+        self.grants = grants
 
     def credentials(self):
         rows = self.store.rows("SELECT * FROM credentials ORDER BY created_at DESC")
@@ -204,6 +204,12 @@ class Broker:
         self.native.call("vault_delete", {"id": identifier})
         self.store.execute("DELETE FROM credentials WHERE id=?", (identifier,))
         self.store.audit("credential_removed", f"Removed credential: {credential['name']}")
+
+    def revoke_requests(self, grant_id: str):
+        """Desktop revoked this grant: its requests can no longer be approved; their results are dropped."""
+        self.store.execute(
+            "UPDATE broker_requests SET state='revoked',result=NULL WHERE grant_id=?", (grant_id,)
+        )
 
     def expire(self):
         self.store.execute(
@@ -293,7 +299,7 @@ class Broker:
         credential = self.store.one(
             "SELECT id FROM credentials WHERE id=? AND state='active'", (request["credential_id"],)
         )
-        grant = self.store.one("SELECT id FROM grants WHERE id=? AND revoked=0", (request["grant_id"],))
+        grant = self.grants.active(request["grant_id"])
         try:
             if not credential or not grant:
                 raise PermissionError("Access was revoked")

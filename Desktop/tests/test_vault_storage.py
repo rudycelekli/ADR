@@ -1,8 +1,8 @@
 import pytest
 from conftest import grant_token
 
-from adr_desktop.native import NativeTimedOut, NativeUnavailable
 from adr_desktop.storage.files import read_private_json
+from adr_desktop.vault.contracts import NativeTimedOut, NativeUnavailable
 
 
 def saved(runtime):
@@ -170,10 +170,10 @@ def test_missing_value_can_be_reentered_without_replacing_its_metadata_id(client
     )
 
 
-def test_output_protection_ids_do_not_expand_scoped_environment_injection(runtime, tmp_path):
-    first = runtime.environment_vault.create("First", "FIRST_TOKEN")
-    second = runtime.environment_vault.create("Second", "SECOND_TOKEN")
-    service = runtime.broker.create(
+def test_output_protection_ids_do_not_expand_scoped_environment_injection(vault, tmp_path):
+    first = vault.environment.create("First", "FIRST_TOKEN")
+    second = vault.environment.create("Second", "SECOND_TOKEN")
+    service = vault.broker.create(
         {
             "name": "Service",
             "origin": "https://example.com",
@@ -182,18 +182,9 @@ def test_output_protection_ids_do_not_expand_scoped_environment_injection(runtim
             "allowed_paths": ["/"],
         }
     )
-    grant = runtime.create_grant(
-        "Selected",
-        str(tmp_path),
-        [first["id"]],
-        kind="execution",
-        confirm_execution=True,
-        approval_mode="automatic",
-        confirm_automatic=True,
-    )
-    principal = runtime.store.one("SELECT * FROM grants WHERE id=?", (grant["id"],))
-    runtime.environment_vault.execute(principal, "printf safe", str(tmp_path))
-    arguments = next(args for op, args in runtime.native.calls if op == "environment_execute")
+    grant = vault.grants.issue([first["id"]], project=str(tmp_path), name="Selected")
+    vault.environment.execute(grant, "printf safe", str(tmp_path))
+    arguments = next(args for op, args in vault.native.calls if op == "environment_execute")
     assert arguments["ids"] == [first["id"]]
     assert set(arguments["protection_environment_ids"]) == {first["id"], second["id"]}
     assert arguments["protection_service_ids"] == [service["id"]]

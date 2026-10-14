@@ -3,7 +3,7 @@ import time
 import pytest
 from conftest import add_credential
 
-from adr_desktop.broker import path_allowed, validate_origin, validate_path, validate_profile
+from adr_desktop.vault.broker import path_allowed, validate_origin, validate_path, validate_profile
 
 
 @pytest.mark.parametrize(
@@ -64,43 +64,55 @@ def test_credential_cannot_control_http_routing_headers(header):
         )
 
 
-def test_expired_requests_cannot_be_approved(runtime):
-    credential = add_credential(runtime)
-    grant = runtime.create_grant("Agent", "/workspace", [credential["id"]])
-    stored = runtime.store.one("SELECT * FROM grants WHERE id=?", (grant["id"],))
-    pending = runtime.broker.enqueue(stored, credential["id"], "/user")
-    runtime.store.execute(
+def connection(vault, credential, name="Agent"):
+    return vault.grants.issue([credential["id"]], kind="legacy", project="/workspace", approval_mode="ask",
+                              name=name)
+
+
+def test_expired_requests_cannot_be_approved(vault):
+    credential = add_credential(vault)
+    grant = connection(vault, credential)
+    pending = vault.broker.enqueue(grant, credential["id"], "/user")
+    vault.store.execute(
         "UPDATE broker_requests SET expires_at=? WHERE id=?", (time.time() - 1, pending["request_id"])
     )
     with pytest.raises(ValueError):
-        runtime.broker.approve(pending["request_id"], True)
-    assert not any(operation == "vault_perform" for operation, _ in runtime.native.calls)
+        vault.broker.approve(pending["request_id"], True)
+    assert not any(operation == "vault_perform" for operation, _ in vault.native.calls)
 
 
-def test_credential_revocation_blocks_pending_requests(runtime):
-    credential = add_credential(runtime)
-    grant = runtime.create_grant("Agent", "/workspace", [credential["id"]])
-    stored = runtime.store.one("SELECT * FROM grants WHERE id=?", (grant["id"],))
-    pending = runtime.broker.enqueue(stored, credential["id"], "/user")
-    runtime.broker.remove(credential["id"])
-    assert runtime.broker.result(stored, pending["request_id"])["state"] == "revoked"
+def test_credential_revocation_blocks_pending_requests(vault):
+    credential = add_credential(vault)
+    grant = connection(vault, credential)
+    pending = vault.broker.enqueue(grant, credential["id"], "/user")
+    vault.broker.remove(credential["id"])
+    assert vault.broker.result(grant, pending["request_id"])["state"] == "revoked"
     with pytest.raises(ValueError):
-        runtime.broker.approve(pending["request_id"], True)
+        vault.broker.approve(pending["request_id"], True)
 
 
-def test_approval_result_belongs_only_to_requesting_connection(runtime):
-    credential = add_credential(runtime)
-    first = runtime.create_grant("First", "/workspace", [credential["id"]])
-    second = runtime.create_grant("Second", "/workspace", [credential["id"]])
-    a = runtime.store.one("SELECT * FROM grants WHERE id=?", (first["id"],))
-    b = runtime.store.one("SELECT * FROM grants WHERE id=?", (second["id"],))
-    pending = runtime.broker.enqueue(a, credential["id"], "/user")
+def test_approval_result_belongs_only_to_requesting_connection(vault):
+    credential = add_credential(vault)
+    first = connection(vault, credential, "First")
+    second = connection(vault, credential, "Second")
+    pending = vault.broker.enqueue(first, credential["id"], "/user")
     with pytest.raises(ValueError):
-        runtime.broker.result(b, pending["request_id"])
+        vault.broker.result(second, pending["request_id"])
 
 
-def test_no_plaintext_fallback_without_native_host(runtime):
-    runtime.native.connected = False
+def test_no_plaintext_fallback_without_native_host(vault):
+    vault.native.connected = False
     with pytest.raises(RuntimeError):
-        add_credential(runtime)
-    assert runtime.broker.credentials() == []
+        add_credential(vault)
+    assert vault.broker.credentials() == []
+
+
+def test_requests_of_a_revoked_grant_can_no_longer_be_approved(vault):
+    credential = add_credential(vault)
+    grant = connection(vault, credential)
+    pending = vault.broker.enqueue(grant, credential["id"], "/user")
+    vault.broker.revoke_requests(grant["id"])
+    assert vault.broker.result(grant, pending["request_id"])["state"] == "revoked"
+    with pytest.raises(ValueError):
+        vault.broker.approve(pending["request_id"], True)
+    assert not any(operation == "vault_perform" for operation, _ in vault.native.calls)

@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 
 from adr_desktop.approval_queue import ApprovalQueue
-from adr_desktop.native import NativeTimedOut, NativeUnavailable
+from adr_desktop.vault.contracts import NativeTimedOut, NativeUnavailable
 
 
 def wait_pending(queue, expected):

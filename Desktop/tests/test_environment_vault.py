@@ -4,10 +4,10 @@ import pytest
 from conftest import grant_token
 
 from adr_desktop.detection.inline.credentials import detect_prompt_credentials
-from adr_desktop.environment_vault import PROMPT_MESSAGE, validate_entry
 from adr_desktop.mcp_server import tools_for
-from adr_desktop.native import NativeUnavailable
 from adr_desktop.storage.files import canonical, read_private_json
+from adr_desktop.vault.contracts import NativeUnavailable
+from adr_desktop.vault.environment import PROMPT_MESSAGE, validate_entry
 
 
 def entry(runtime, name="My password", variable="MY_PASSWORD"):
@@ -75,22 +75,22 @@ def test_raw_values_are_rejected_without_validation_reflection(client, owner):
     assert secret not in response.text
 
 
-def test_failed_native_save_never_grants_an_active_entry(runtime, monkeypatch):
+def test_failed_native_save_never_grants_an_active_entry(vault, monkeypatch):
     def fail(*_args, **_kwargs):
         raise NativeUnavailable("synthetic_failure")
 
-    monkeypatch.setattr(runtime.native, "call", fail)
+    monkeypatch.setattr(vault.native, "call", fail)
     with pytest.raises(NativeUnavailable):
-        entry(runtime)
-    assert runtime.environment_vault.entries()[0]["state"] == "unconfirmed"
-    assert read_private_json(runtime.state_dir / "vault-aliases.json")["names"] == []
+        vault.environment.create("My password", "MY_PASSWORD")
+    assert vault.environment.entries()[0]["state"] == "unconfirmed"
+    assert read_private_json(vault.state_dir / "vault-aliases.json")["names"] == []
 
 
-def test_no_plaintext_environment_fallback_without_native(runtime):
-    runtime.native.connected = False
+def test_no_plaintext_environment_fallback_without_native(vault):
+    vault.native.connected = False
     with pytest.raises(NativeUnavailable):
-        entry(runtime)
-    assert not runtime.environment_vault.entries()
+        vault.environment.create("My password", "MY_PASSWORD")
+    assert not vault.environment.entries()
 
 
 def test_command_execution_requires_explicit_permission(runtime, tmp_path):
@@ -196,38 +196,38 @@ def test_execution_connection_advertises_only_its_capabilities():
     }
 
 
-def test_execution_does_not_override_file_block_or_scope(runtime, tmp_path):
-    saved = entry(runtime)
-    grant = connection(runtime, tmp_path, [saved["id"]])
-    principal = runtime.store.one("SELECT * FROM grants WHERE id=?", (grant["id"],))
-    protected = tmp_path / "protected"
-    runtime.change_policy(add={"path": str(protected), "action": "block", "kind": "file"})
+def test_execution_does_not_override_file_block_or_scope(vault, tmp_path):
+    saved = vault.environment.create("My password", "MY_PASSWORD")
+    grant = vault.grants.issue([saved["id"]], project=str(tmp_path))
+    vault.guard.decision = "deny"
     with pytest.raises(PermissionError, match="protection"):
-        runtime.environment_vault.execute(principal, "cat protected")
+        vault.environment.execute(grant, "cat protected")
+    vault.guard.decision = "pass"
     with pytest.raises(PermissionError, match="working directory"):
-        runtime.environment_vault.execute(principal, "pwd", str(tmp_path.parent))
-    assert not any(operation == "environment_execute" for operation, _ in runtime.native.calls)
+        vault.environment.execute(grant, "pwd", str(tmp_path.parent))
+    assert not any(operation == "environment_execute" for operation, _ in vault.native.calls)
 
 
-def test_file_ask_still_needs_native_approval_with_automatic_credential_grant(runtime, tmp_path):
-    saved = entry(runtime)
-    grant = connection(runtime, tmp_path, [saved["id"]])
-    principal = runtime.store.one("SELECT * FROM grants WHERE id=?", (grant["id"],))
-    runtime.change_policy(add={"path": str(tmp_path / "private"), "action": "ask", "kind": "file"})
+def test_file_ask_still_needs_native_approval_with_automatic_credential_grant(vault, tmp_path):
+    saved = vault.environment.create("My password", "MY_PASSWORD")
+    grant = vault.grants.issue([saved["id"]], project=str(tmp_path))
+    vault.guard.decision, vault.guard.approves = "ask", False
     with pytest.raises(PermissionError, match="not approved"):
-        runtime.environment_vault.execute(principal, "cat private")
-    assert any(operation == "approve_tool" for operation, _ in runtime.native.calls)
-    assert not any(operation == "environment_execute" for operation, _ in runtime.native.calls)
+        vault.environment.execute(grant, "cat private")
+    assert vault.guard.approvals == [
+        {"agent": "Agent", "command": "cat private", "cwd": str(tmp_path), "variables": ["MY_PASSWORD"]}
+    ]
+    assert not any(operation == "environment_execute" for operation, _ in vault.native.calls)
 
 
-def test_revoking_entry_blocks_use_and_removes_alias(runtime, tmp_path):
-    saved = entry(runtime)
-    grant = connection(runtime, tmp_path, [saved["id"]])
-    principal = runtime.store.one("SELECT * FROM grants WHERE id=?", (grant["id"],))
-    runtime.environment_vault.remove(saved["id"])
+def test_revoking_entry_blocks_use_and_removes_alias(vault, tmp_path):
+    saved = vault.environment.create("My password", "MY_PASSWORD")
+    grant = vault.grants.issue([saved["id"]], project=str(tmp_path))
+    assert read_private_json(vault.state_dir / "vault-aliases.json") == {"names": ["MY_PASSWORD"]}
+    vault.environment.remove(saved["id"])
     with pytest.raises(PermissionError):
-        runtime.environment_vault.execute(principal, "printf done")
-    assert read_private_json(runtime.state_dir / "vault-aliases.json")["names"] == []
+        vault.environment.execute(grant, "printf done")
+    assert read_private_json(vault.state_dir / "vault-aliases.json")["names"] == []
 
 
 def test_prompt_check_blocks_known_values_without_storing_prompt(client, runtime):
@@ -255,44 +255,30 @@ def test_prompt_check_blocks_known_values_without_storing_prompt(client, runtime
     )
 
 
-def test_prompt_with_variable_reference_can_be_resubmitted_after_saving(runtime):
-    entry(runtime)
-    result = runtime.environment_vault.check_prompt("Use $MY_PASSWORD with my program", "codex")
+def test_prompt_with_variable_reference_can_be_resubmitted_after_saving(vault):
+    vault.environment.create("My password", "MY_PASSWORD")
+    result = vault.environment.check_prompt("Use $MY_PASSWORD with my program", "codex")
     assert result["blocked"] is False
 
 
-def test_prompt_check_fails_closed_when_saved_values_cannot_be_checked(runtime):
-    entry(runtime)
-    runtime.native.connected = False
-    assert runtime.environment_vault.check_prompt("ordinary prompt", "codex")["blocked"] is True
+def test_prompt_check_fails_closed_when_saved_values_cannot_be_checked(vault):
+    vault.environment.create("My password", "MY_PASSWORD")
+    vault.native.connected = False
+    assert vault.environment.check_prompt("ordinary prompt", "codex")["blocked"] is True
 
 
-def test_credential_membership_change_during_approval_cannot_reuse_old_secret(runtime, tmp_path, monkeypatch):
-    first = entry(runtime)
-    other = entry(runtime, "Other", "OTHER_PASSWORD")
-    grant = runtime.create_grant(
-        "Ask",
-        str(tmp_path),
-        [first["id"]],
-        kind="execution",
-        confirm_execution=True,
-    )
-    principal = runtime.store.one("SELECT * FROM grants WHERE id=?", (grant["id"],))
-    original = runtime.native.call
+def test_credential_membership_change_during_approval_cannot_reuse_old_secret(vault, tmp_path, monkeypatch):
+    first = vault.environment.create("My password", "MY_PASSWORD")
+    other = vault.environment.create("Other", "OTHER_PASSWORD")
+    grant = vault.grants.issue([first["id"]], project=str(tmp_path), approval_mode="ask")
 
-    def changed(operation, arguments=None, timeout=30):
-        if operation == "approve_tool":
-            runtime.store.execute(
-                "UPDATE grants SET credentials=? WHERE id=?",
-                (json.dumps([other["id"]]), grant["id"]),
-            )
-            return {"allowed": True}
-        return original(operation, arguments, timeout)
+    def changed(*_arguments):
+        vault.grants.items[grant["id"]] = {**grant, "credentials": json.dumps([other["id"]])}
 
-    monkeypatch.setattr(runtime.native, "call", changed)
+    monkeypatch.setattr(vault.guard, "approve", changed)
     with pytest.raises(PermissionError, match="revoked"):
-        runtime.environment_vault.execute(principal, "printf safe")
-    assert not any(operation == "environment_execute" for operation, _ in runtime.native.calls)
+        vault.environment.execute(grant, "printf safe")
+    assert not any(operation == "environment_execute" for operation, _ in vault.native.calls)
 
 
 def test_known_tool_output_check_does_not_create_a_prompt_record(client, runtime):

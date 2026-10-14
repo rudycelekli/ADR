@@ -3,17 +3,14 @@
 import json
 import re
 import threading
-import time
 from pathlib import Path
 
-from .config import utcnow
-from .detection.inline.credentials import detect_credentials, detect_prompt_credentials, find_credentials
-from .detection.operation import resolve_path
-from .evaluate import evaluate_operation
-from .local_client import SAFE_ERRORS
-from .native import NativeTimedOut, NativeUnavailable
-from .storage.files import atomic_json, canonical
-from .storage.ids import new_id
+from ..detection.inline.credentials import detect_credentials, detect_prompt_credentials, find_credentials
+from ..detection.operation import resolve_path
+from ..storage.files import atomic_json, canonical
+from ..storage.ids import new_id
+from .contracts import SAFE_ERRORS, NativeTimedOut, NativeUnavailable, utcnow
+from .ports import Grants, Guard, NativeVault
 
 ENV_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}")
 RESERVED = frozenset(
@@ -115,9 +112,12 @@ class NativeSavedValues:
 
 
 class EnvironmentVault:
-    def __init__(self, runtime):
-        self.runtime = runtime
-        self.store, self.native = runtime.store, runtime.native
+    """Saved variables, their aliases file and credential-backed runs. ``broker`` lists the API-only
+    credentials, whose values are also kept out of prompts and results."""
+
+    def __init__(self, store, state_dir: Path, native: NativeVault, broker, guard: Guard, grants: Grants):
+        self.store, self.state_dir, self.native = store, state_dir, native
+        self.broker, self.guard, self.grants = broker, guard, grants
         self.slots = threading.BoundedSemaphore(2)
         self.store.execute(
             "UPDATE environment_runs SET state='interrupted' WHERE state IN ('checking','running')"
@@ -131,7 +131,7 @@ class EnvironmentVault:
 
     def publish_aliases(self):
         atomic_json(
-            self.runtime.state_dir / "vault-aliases.json",
+            self.state_dir / "vault-aliases.json",
             {
                 "names": [row["env_name"] for row in self.entries() if row["state"] == "active"],
             },
@@ -208,7 +208,7 @@ class EnvironmentVault:
             return {"blocked": True, "message": UNAVAILABLE_MESSAGE}
         ids = [row["id"] for row in self.entries() if row["state"] == "active"]
         # Include existing API credentials without granting execution access to them.
-        service_ids = [row["id"] for row in self.runtime.broker.credentials() if row["state"] == "active"]
+        service_ids = [row["id"] for row in self.broker.credentials() if row["state"] == "active"]
         try:
             kinds, aliases = find_credentials(
                 prompt, NativeSavedValues(self.native, ids, service_ids), prompt=record,
@@ -277,7 +277,6 @@ class EnvironmentVault:
         if not self.slots.acquire(blocking=False):
             raise ValueError("ADR is already running two credential-backed commands; try again shortly")
         identifier = new_id()
-        event = {"tool_name": "Bash", "tool_input": {"command": command}, "cwd": str(directory)}
         # The native runner does not inherit the daemon's environment. Saved
         # aliases are opaque here: a registry-control alias cannot be guessed
         # to contain a public URL, and no value crosses the native boundary.
@@ -295,58 +294,25 @@ class EnvironmentVault:
                 if checked.get("unavailable"):
                     raise NativeUnavailable(checked["reason_code"])
                 raise PermissionError("Use saved variable names instead of literal credentials in commands")
-            decision = evaluate_operation(
-                event, "codex", self.runtime.policy, state_dir=self.runtime.state_dir, allow_adr_trust=False,
-                environment=execution_environment,
-            )
+            decision = self.guard.evaluate(command, str(directory), execution_environment)
             if decision.decision == "deny":
                 if decision.artifact:
-                    self.runtime.threats.record_block(decision, harness="vault", source="vault")
                     raise PermissionError("known_malicious_artifact")
                 raise PermissionError("ADR file protection blocked this command")
             approved = False
             if grant["approval_mode"] == "ask" or decision.decision == "ask":
-                deadline = time.monotonic() + 80
-                ticket, failure = self.runtime.hook_approvals.acquire(deadline)
-                if ticket is None:
-                    raise PermissionError("ADR could not obtain approval for this command")
-                try:
-                    remaining = deadline - time.monotonic()
-                    if remaining <= 0:
-                        raise PermissionError("Command approval expired")
-                    answer = self.native.call(
-                        "approve_tool",
-                        {
-                            "harness": grant["name"],
-                            "tool": "Credential-backed command",
-                            "operation": canonical(
-                                {
-                                    "command": command,
-                                    "cwd": str(directory),
-                                    "variables": [row["env_name"] for row in entries],
-                                }
-                            ),
-                            "expires_at": time.time() + remaining,
-                        },
-                        timeout=remaining,
-                    )
-                    if answer.get("allowed") is not True or time.monotonic() >= deadline:
-                        raise PermissionError("Credential-backed command was not approved")
-                    approved = True
-                finally:
-                    self.runtime.hook_approvals.release(ticket)
-            current = self.store.one("SELECT * FROM grants WHERE id=? AND revoked=0", (grant["id"],))
+                self.guard.approve(
+                    grant["name"], command, str(directory), [row["env_name"] for row in entries],
+                )
+                approved = True
+            current = self.grants.active(grant["id"])
             if not current or not {row["id"] for row in entries} <= {
                 row["id"] for row in self.permitted(current)
             }:
                 raise PermissionError("Access was revoked")
-            rechecked = evaluate_operation(
-                event, "codex", self.runtime.policy, state_dir=self.runtime.state_dir, allow_adr_trust=False,
-                environment=execution_environment,
-            )
+            rechecked = self.guard.evaluate(command, str(directory), execution_environment)
             if rechecked.decision == "deny" or (rechecked.decision == "ask" and not approved):
                 if rechecked.artifact:
-                    self.runtime.threats.record_block(rechecked, harness="vault", source="vault")
                     raise PermissionError("known_malicious_artifact")
                 raise PermissionError("ADR file protection blocked this command")
             self.store.execute("UPDATE environment_runs SET state='running' WHERE id=?", (identifier,))
@@ -358,7 +324,7 @@ class EnvironmentVault:
                         row["id"] for row in self.entries() if row["state"] == "active"
                     ],
                     "protection_service_ids": [
-                        row["id"] for row in self.runtime.broker.credentials() if row["state"] == "active"
+                        row["id"] for row in self.broker.credentials() if row["state"] == "active"
                     ],
                     "command": command,
                     "cwd": str(directory),
@@ -366,7 +332,7 @@ class EnvironmentVault:
                 },
                 timeout=timeout_seconds + 5,
             )
-            current = self.store.one("SELECT * FROM grants WHERE id=? AND revoked=0", (grant["id"],))
+            current = self.grants.active(grant["id"])
             if not current or not {row["id"] for row in entries} <= {
                 row["id"] for row in self.permitted(current)
             }:
