@@ -5,11 +5,13 @@ manifest are specified in [README.md](README.md); this file is about the code.
 
 ## Run it
 
+From `Sensor/`:
+
 ```sh
-python3 -m tests.cli check                          # static manifest checks, no guest
-python3 -m tests.cli synthesize runs/local --os linux
-python3 -m tests.cli score runs/local --html runs/local/score.html
-python3 -m tests.cli run --os linux --dry           # records commands, touches no guest
+python3 -m tests.discovery.cli check                          # static manifest checks, no guest
+python3 -m tests.discovery.cli synthesize runs/local --os linux
+python3 -m tests.discovery.cli score runs/local --html runs/local/score.html
+python3 -m tests.discovery.cli run --os linux --dry           # records commands, touches no guest
 ```
 
 `score` exits non-zero when the gate fails, so it can be used directly in CI.
@@ -67,7 +69,7 @@ independently. It does not import the collector: whether the tools are
 answering the second one first is what makes the first one meaningful.
 
 ```sh
-python3 -c "from tests.provision.lima import LimaDriver; from tests.tools import bootstrap; \
+python3 -c "from tests.discovery.provision.lima import LimaDriver; from tests.discovery.tools import bootstrap; \
             print(bootstrap.provision(LimaDriver(), 'linux').counts)"
 ```
 

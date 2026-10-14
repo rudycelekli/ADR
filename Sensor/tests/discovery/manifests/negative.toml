@@ -1,4 +1,4 @@
-# Negative controls of Discovery/tests/README.md: N-01 .. N-10.
+# Negative controls of Sensor/tests/discovery/README.md: N-01 .. N-10.
 #
 # Without these the false-positive rate cannot be measured, and a collector that
 # reported everything would score perfectly on every other table.

@@ -1,0 +1,6 @@
+# Discovery's tests use Discovery's lint settings.
+extend = "../../adr_discovery/ruff.toml"
+src = ["../.."]
+
+[lint.per-file-ignores]
+"**" = ["B011"]

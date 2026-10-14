@@ -38,9 +38,9 @@ def required_python_modules():
     required = {
         "adr_desktop.api", "adr_desktop.review_supervisor", "adr_desktop.security_reviews",
         "adr_desktop.integrations.agents",
-        "adr_discovery.pipeline", "adr_discovery.coverage.report",
+        "adr_discovery.api", "adr_discovery.pipeline", "adr_discovery.coverage.report",
         "adr_protection.api_v1", "adr_protection.artifacts", "adr_protection.contracts",
-        "adr_sensor.observer", "tabulate", "zstandard",
+        "adr_sensor.api", "adr_sensor.observer", "tabulate", "zstandard",
     }
     # Sensor parsers are dynamically selected at runtime. A successful UI
     # launch alone does not prove that every supported collector was frozen.
@@ -133,8 +133,6 @@ def main():
             ROOT,
             "--paths",
             ROOT.parent / "Sensor",
-            "--paths",
-            ROOT.parent / "Discovery",
             "--paths",
             ROOT.parent / "Protection",
             "--collect-data",

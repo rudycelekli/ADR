@@ -19,5 +19,5 @@ jobs:
       - uses: astral-sh/setup-uv@v7
       - run: uv sync --extra dev --python 3.12
         working-directory: Sensor
-      - run: uv run pytest tests/test_gemini_parser.py -q
+      - run: uv run pytest tests/sensor/test_gemini_parser.py -q
         working-directory: Sensor

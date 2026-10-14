@@ -12,7 +12,7 @@ import ast
 import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PACKAGE = os.path.abspath(os.path.join(HERE, ".."))
+PACKAGE = os.path.abspath(os.path.join(HERE, "..", "..", "..", "adr_discovery"))
 
 STAGES = ("world", "enumerator", "extractor", "identifier", "resolver", "judge", "reporter")
 CROSS_CUTTING = ("catalog", "redact", "coverage")
@@ -30,7 +30,7 @@ HOST_ALLOWED = ("world", "cli.py")
 
 def _modules():
     for dirpath, dirnames, filenames in os.walk(PACKAGE):
-        dirnames[:] = [d for d in dirnames if d not in {"__pycache__", "tests_unit"}]
+        dirnames[:] = [d for d in dirnames if d not in {"__pycache__"}]
         for name in filenames:
             if name.endswith(".py"):
                 full = os.path.join(dirpath, name)
@@ -98,7 +98,7 @@ def test_no_stage_imports_a_sibling_stage():
 def test_only_the_pipeline_imports_more_than_one_stage():
     offenders = []
     for rel, full in _modules():
-        if rel in ("pipeline.py", "cli.py") or _top_package(rel) in STAGES:
+        if rel in ("pipeline.py", "cli.py", "api.py") or _top_package(rel) in STAGES:
             continue
         touched = set()
         for module, is_relative, level in _imports(full):

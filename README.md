@@ -57,7 +57,7 @@ This repository contains the open-source **ADR Discovery**, **ADR Sensor**, **AD
 | -------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------ |
 | [Desktop/](Desktop/)                               | ADR Desktop preview        | Local menu-bar app, session Insights, file hooks, and credential brokering for individual users |
 | [Protection/](Protection/)                         | ADR Protection library     | Offline artifact-feed validation and exact-identity matching through an in-process v1 API; no service or enforcement side effects |
-| [Discovery/](Discovery/)                           | ADR Discovery              | Inventory the AI apps, CLI agents, IDE extensions, model runtimes, and MCP servers on an endpoint, and flag unknown surfaces for review |
+| [Sensor/adr_discovery/](Sensor/adr_discovery/)     | ADR Discovery              | Inventory the AI apps, CLI agents, IDE extensions, model runtimes, and MCP servers on an endpoint, and flag unknown surfaces for review |
 | [Sensor/](Sensor/)                                 | ADR Observability          | Collect and normalize agent telemetry from Claude Code, Cursor, Codex, GitHub Copilot CLI, DeepSeek Harness, opencode, Claude Desktop, and others |
 | [Detection/](Detection/)                           | ADR Benchmark + Detection  | Dual-agent detector, 134 MCP servers, 304 benchmark tasks, baselines, figure scripts |
 | [docs/REPRODUCIBILITY.md](docs/REPRODUCIBILITY.md) | Evaluation                 | Step-by-step workflow to reproduce benchmark detection and paper figures             |
@@ -80,7 +80,7 @@ Component documentation:
 ADR Sensor also captures [Gemini CLI session journals](Sensor/README.md#gemini-cli)
 on macOS, Linux, and Windows, including tool results and nested subagent sessions.
 
-- [Discovery/README.md](Discovery/README.md): endpoint inventory, probes, and the fingerprint catalog
+- [Sensor/DISCOVERY.md](Sensor/DISCOVERY.md): endpoint inventory, probes, and the fingerprint catalog
 - [Sensor/README.md](Sensor/README.md): telemetry collection and unified schema
 - [Protection/README.md](Protection/README.md): offline artifact API and compatibility contract
 - [Detection/README.md](Detection/README.md): ADR-Bench, detector baselines, MCP infrastructure

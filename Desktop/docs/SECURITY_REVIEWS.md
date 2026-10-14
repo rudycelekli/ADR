@@ -137,10 +137,10 @@ commands, external reports or PRs are created by the reviewer.
 ## Development verification
 
 ```sh
-PYTHONPATH=.:../Discovery:../Sensor uv run pytest -q \
+PYTHONPATH=.:../Sensor uv run pytest -q \
   tests/test_review_process.py tests/test_review_quota.py tests/test_security_reviews.py \
   tests/test_review_usage.py
-PYTHONPATH=.:../Discovery:../Sensor uv run python scripts/reviews_ui_qa.py
+PYTHONPATH=.:../Sensor uv run python scripts/reviews_ui_qa.py
 ```
 
 The fixtures use subprocesses speaking the real CLI protocol shapes and

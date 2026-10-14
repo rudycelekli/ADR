@@ -31,7 +31,7 @@ def capture_worker(destination: Path, history_days: int) -> int:
     destination.mkdir(parents=True, exist_ok=True, mode=0o700)
     try:
         with contextlib.redirect_stdout(sys.stderr):
-            from adr_sensor.observer import AgentObserver
+            from adr_sensor.api import AgentObserver
 
             logging.getLogger("adr_sensor").setLevel(logging.CRITICAL)
             observer = AgentObserver(output_dir=destination, max_age_days=history_days)
@@ -51,18 +51,18 @@ def inventory_worker(destination: Path) -> int:
     destination.mkdir(parents=True, exist_ok=True, mode=0o700)
     try:
         with contextlib.redirect_stdout(sys.stderr):
-            from importlib.resources import files
+            from adr_discovery.api import (
+                Budget,
+                Gate,
+                Ledger,
+                Policy,
+                bundled_catalog,
+                discover,
+                for_host,
+                to_json,
+            )
 
-            from adr_discovery.catalog.load import loads
-            from adr_discovery.coverage.ledger import Ledger
-            from adr_discovery.judge import Policy
-            from adr_discovery.pipeline import discover
-            from adr_discovery.reporter import to_json
-            from adr_discovery.world.budget import Budget
-            from adr_discovery.world.gate import Gate
-            from adr_discovery.world.platform import for_host
-
-            catalog = loads(files("adr_discovery.catalog").joinpath("catalog.json").read_text())
+            catalog = bundled_catalog()
             gate = Gate(
                 root="/",
                 ledger=Ledger(),

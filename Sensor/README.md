@@ -4,6 +4,8 @@
 
 ADR Sensor is a Python library that collects telemetry from AI coding agents to enable security monitoring, threat detection, and observability. It parses logs from multiple AI agent platforms and normalizes them into a unified schema for downstream analysis.
 
+The `adr-sensor` package also contains **ADR Discovery**, which inventories the AI binaries, agents, MCP servers and skills on an endpoint. It is a separate import package, `adr_discovery`, with its own `adr-discovery` command; see [DISCOVERY.md](DISCOVERY.md). The two import packages never import each other.
+
 > **Paper:** [ADR: An Agentic Detection System for Enterprise Agentic AI Security](https://arxiv.org/abs/2605.17380)  
 > **Code:** [github.com/uber/ADR](https://github.com/uber/ADR)
 
@@ -359,6 +361,10 @@ callers can use `adr_sensor.sensor_log.set_console_level()` for the same effect.
 
 ### Python API
 
+The package root exports `AgentObserver` and the event schema types. Host programs
+with an enforced boundary, such as ADR Desktop, import only from `adr_sensor.api`
+(and `adr_discovery.api` for inventory).
+
 ```python
 from adr_sensor import AgentObserver
 
@@ -688,7 +694,7 @@ no per-source branch is needed. If the agent only exists on some operating syste
 add it to `PLATFORM_RESTRICTED_SOURCES` and it will be skipped elsewhere. The CLI
 builds its `--source` choices from `SOURCES`, so it picks the new agent up for free.
 
-3. Add tests in `tests/`.
+3. Add tests in `tests/sensor/`.
 
 ## Environment
 
@@ -696,7 +702,7 @@ builds its `--source` choices from `SOURCES`, so it picks the new agent up for f
 
 | | |
 | --------------- | ------------------------------------------- |
-| Python          | 3.9, 3.10, 3.11, 3.12, 3.13                 |
+| Python          | 3.11, 3.12, 3.13                            |
 | Operating system| macOS, Linux, Windows                       |
 | Dependencies    | `tabulate`, `zstandard`; OpenTelemetry is an optional `otel` extra |
 
@@ -738,7 +744,7 @@ ADR Sensor enables detection of:
 # Install dev dependencies
 pip install -e ".[dev]"
 
-# Run tests
+# Run tests (Sensor in tests/sensor/, Discovery in tests/discovery/)
 pytest tests/ -v
 
 # Run tests with coverage
@@ -747,6 +753,7 @@ pytest tests/ -v --cov=adr_sensor
 # Lint
 ruff check adr_sensor/
 ruff format adr_sensor/
+ruff check adr_discovery/ tests/discovery/   # Discovery's own settings
 ```
 
 ## Project Structure
@@ -755,6 +762,7 @@ ruff format adr_sensor/
 adr-sensor/
 ├── adr_sensor/
 │   ├── __init__.py          # Package exports
+│   ├── api.py               # Public interface for host programs
 │   ├── cli.py               # CLI entry point
 │   ├── observer.py          # AgentObserver orchestrator
 │   ├── exporters/
@@ -778,10 +786,18 @@ adr-sensor/
 │   └── utils/
 │       ├── string_utils.py
 │       └── timestamp_utils.py
+├── adr_discovery/           # ADR Discovery (see DISCOVERY.md)
+│   ├── api.py               # Public interface for host programs
+│   ├── cli.py               # adr-discovery entry point
+│   └── catalog/catalog.json # Known-tool catalog shipped in the wheel
 ├── tests/
+│   ├── sensor/
+│   ├── discovery/           # Endpoint harness; unit/ holds module tests
+│   └── wheel_smoke.py       # Checks an installed wheel outside the checkout
 ├── examples/
 │   └── opentelemetry-config.json
 ├── CONTRIBUTING.md
+├── DISCOVERY.md
 ├── LICENSE
 ├── pyproject.toml
 └── README.md

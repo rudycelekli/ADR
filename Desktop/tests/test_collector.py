@@ -59,7 +59,7 @@ def test_real_claude_parser_flows_through_worker_and_store(runtime, tmp_path, mo
     observer = AgentObserver(output_dir=tmp_path / "observer")
     observer.SOURCES = (("claude", "Claude Code"),)
     observer.claude_parser = parser
-    monkeypatch.setattr("adr_sensor.observer.AgentObserver", lambda **kwargs: observer)
+    monkeypatch.setattr("adr_sensor.api.AgentObserver", lambda **kwargs: observer)
     destination = tmp_path / "captured"
     assert capture_worker(destination, 14) == 0
     captured = [json.loads(line) for line in (destination / "sessions.jsonl").read_text().splitlines()]

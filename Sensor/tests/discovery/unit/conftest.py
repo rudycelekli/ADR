@@ -18,7 +18,7 @@ from adr_discovery.world.budget import Budget
 from adr_discovery.world.gate import Gate
 from adr_discovery.world.platform.base import FixtureProviders
 
-PACKAGE = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+PACKAGE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "adr_discovery"))
 
 
 class World:
