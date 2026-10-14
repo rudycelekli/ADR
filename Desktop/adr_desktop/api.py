@@ -18,13 +18,13 @@ from starlette.concurrency import run_in_threadpool
 
 from . import agent_plugins, hooks
 from .approval_queue import APPROVAL_TIMEOUT_SECONDS
-from .config import CAPTURE_INTERVAL_SECONDS, utcnow
+from .config import CAPTURE_INTERVAL_SECONDS, command_prefix, utcnow
 from .credential_activity import RUN_ID, recent_runs, record_session
+from .detection.review.runners import ReviewError
 from .integrations.agents import HARNESS_LABELS
 from .native import NativeTimedOut, NativeUnavailable
 from .policy import event_fields
 from .protection import evaluate_operation
-from .review_process import ReviewError
 from .secret_guard import KINDS, detect_credentials
 from .security_reviews import receive_claude_usage
 from .storage.files import MAX_JSON_BYTES, canonical
@@ -404,10 +404,10 @@ def create_app(runtime) -> FastAPI:
 
     @app.post("/api/reviews/claude-usage", dependencies=[Depends(require_owner)])
     def review_claude_usage(body: Approval):
-        from .review_usage import connect
+        from .detection.review.usage import connect
 
         with runtime.integration_lock:
-            result = connect(runtime.state_dir, enabled=body.allow)
+            result = connect(runtime.state_dir, enabled=body.allow, launcher=command_prefix())
         runtime.store.audit("review_usage_connection", "Claude usage reporting changed",
                             {"connected": result["connected"]})
         return result

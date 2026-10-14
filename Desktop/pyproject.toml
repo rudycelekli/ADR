@@ -79,10 +79,7 @@ forbidden_modules = [
     "starlette",
     "adr_desktop.runtime",
     "adr_desktop.api",
-    "adr_desktop.review_process",
-    "adr_desktop.review_quota",
-    "adr_desktop.review_supervisor",
-    "adr_desktop.review_usage",
+    "adr_desktop.detection.review",
     "adr_desktop.security_reviews",
     "adr_discovery",
 ]
@@ -110,6 +107,14 @@ ignore_imports = [
 ]
 # Storage arrives with ticket 03; until then nothing matches the exception.
 unmatched_ignore_imports_alerting = "none"
+
+[[tool.importlinter.contracts]]
+name = "Detection's review part imports no Desktop module except storage's file helpers"
+type = "forbidden"
+source_modules = ["adr_desktop.detection.review"]
+# The contract above already keeps all of detection off Desktop's other modules. Review gets the
+# database from Desktop, so it does not import the rest of storage either.
+forbidden_modules = ["adr_desktop.storage.database", "adr_desktop.storage.ids"]
 
 [[tool.importlinter.contracts]]
 name = "Storage imports nothing else from Desktop"

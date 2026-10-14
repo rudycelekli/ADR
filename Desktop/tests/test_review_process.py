@@ -1,4 +1,5 @@
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -6,21 +7,24 @@ from pathlib import Path
 
 import pytest
 
-from adr_desktop.review_process import (
+from adr_desktop.config import command_prefix
+from adr_desktop.detection.review.coordinator import REPORT_SCHEMA
+from adr_desktop.detection.review.runners import (
     JsonProcess,
     LocalReviewDriver,
     ReviewError,
     child_environment,
     usage_tokens,
 )
-from adr_desktop.security_reviews import DEFAULTS, REPORT_SCHEMA
+from adr_desktop.security_reviews import DEFAULTS
 
 FIXTURE = Path(__file__).parent / "fixtures" / "review_cli.py"
 
 
 def driver(scenario="success"):
     return LocalReviewDriver(
-        {kind: [sys.executable, str(FIXTURE), kind, scenario] for kind in ("claude", "codex")}
+        {kind: [sys.executable, str(FIXTURE), kind, scenario] for kind in ("claude", "codex")},
+        launcher=command_prefix(),
     )
 
 
@@ -81,7 +85,8 @@ def test_process_time_and_output_limits(tmp_path, scenario, code, seconds):
     # The byte-bound test must not race the independent time-bound test or a
     # slower CI interpreter startup. The hang case retains its short deadline.
     with JsonProcess(
-        [sys.executable, str(FIXTURE), "claude", scenario], tmp_path, threading.Event(), seconds=seconds
+        [sys.executable, str(FIXTURE), "claude", scenario], tmp_path, threading.Event(), seconds=seconds,
+        launcher=command_prefix(),
     ) as process:
         with pytest.raises(ReviewError) as raised:
             process.read()
@@ -95,7 +100,9 @@ def test_waiting_for_an_event_cannot_hide_a_new_deadline_or_cancellation(
     tmp_path, monkeypatch, outcome, reason,
 ):
     cancel = threading.Event()
-    with JsonProcess([sys.executable, str(FIXTURE), "claude", "hang"], tmp_path, cancel) as process:
+    with JsonProcess(
+        [sys.executable, str(FIXTURE), "claude", "hang"], tmp_path, cancel, launcher=command_prefix()
+    ) as process:
         def late_event(**_kwargs):
             # Deterministically model the state changing during queue.get().
             if reason == "timeout":
@@ -113,7 +120,9 @@ def test_waiting_for_an_event_cannot_hide_a_new_deadline_or_cancellation(
 
 def test_cancel_interrupts_waiting_process_and_blocked_input(tmp_path):
     cancel = threading.Event()
-    with JsonProcess([sys.executable, str(FIXTURE), "claude", "hang"], tmp_path, cancel) as process:
+    with JsonProcess(
+        [sys.executable, str(FIXTURE), "claude", "hang"], tmp_path, cancel, launcher=command_prefix()
+    ) as process:
         timer = threading.Timer(0.1, cancel.set)
         timer.start()
         with pytest.raises(ReviewError) as raised:
@@ -129,6 +138,7 @@ def test_lifetime_pipe_loss_stops_cli_even_without_parent_cleanup(tmp_path):
         [sys.executable, str(FIXTURE), "claude", "announce_hang"],
         tmp_path,
         threading.Event(),
+        launcher=command_prefix(),
     ) as process:
         child = process.read()["pid"]
         os.close(process.lifetime)
@@ -160,3 +170,25 @@ def test_invalid_usage_cannot_release_budget():
     assert usage_tokens({}, "codex") is None
     assert usage_tokens({"inputTokens": 100, "cachedInputTokens": 80, "outputTokens": 20}, "codex") == 120
     assert usage_tokens({"inputTokens": 100, "outputTokens": 20, "totalTokens": 150}, "codex") == 150
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX lifetime pipe")
+@pytest.mark.parametrize(
+    ("script", "seconds", "status"),
+    [("raise SystemExit(7)", 10, 7), ("import time; time.sleep(30)", 1, 143)],
+    ids=["exit-status", "deadline"],
+)
+def test_review_supervise_command_returns_the_cli_status_or_stops_it_at_the_deadline(script, seconds, status):
+    lifetime, keep = os.pipe()
+    try:
+        result = subprocess.run(
+            [
+                *command_prefix(), "review-supervise", "--lifetime-fd", str(lifetime),
+                "--timeout", str(seconds), "--", sys.executable, "-c", script,
+            ],
+            pass_fds=(lifetime,), start_new_session=True, timeout=20,
+        )
+    finally:
+        os.close(lifetime)
+        os.close(keep)
+    assert result.returncode == status

@@ -1,6 +1,6 @@
 import pytest
 
-from adr_desktop.review_quota import admission, claude_quota, codex_quota, combine_claude
+from adr_desktop.detection.review.quota import admission, claude_quota, codex_quota, combine_claude
 
 NOW = 1_800_000_000
 

@@ -160,6 +160,11 @@ def _timestamp(value: Any) -> str:
     return ""
 
 
+def _instant(epoch: float) -> str:
+    """Epoch seconds in the form stored timestamps use, so the two compare as text."""
+    return datetime.fromtimestamp(epoch, timezone.utc).isoformat(timespec="milliseconds")
+
+
 def _session_times(payload: dict) -> tuple[str, str]:
     """Use only retained capture metadata, never catalog/receipt/last_seen times."""
     started = _timestamp(payload.get("timestamp"))
@@ -755,6 +760,35 @@ class Store(Database):
             ]
         }
         return row
+
+    # Detection's SessionSource port, read by session reviews (see detection.ports).
+
+    def describe_sessions(self, session_ids: list[str]) -> dict[str, dict]:
+        placeholders = ",".join("?" for _ in session_ids)
+        rows = self.rows(
+            f"SELECT id,title,source,digest FROM sessions WHERE id IN ({placeholders})", tuple(session_ids)
+        )
+        return {row.pop("id"): row for row in rows}
+
+    def recent_sessions(self, projects: list[str]) -> list[dict]:
+        placeholders = ",".join("?" for _ in projects)
+        return self.rows(
+            f"""SELECT s.id,s.project,s.digest,s.message_count,s.source,s.source_session_id
+               FROM sessions s JOIN session_retrieval r ON r.session_id=s.id
+               WHERE s.project IN ({placeholders}) ORDER BY r.activity_at DESC""",
+            tuple(projects),
+        )
+
+    def active_sessions(self, since: float) -> list[dict]:
+        return self.rows(
+            """SELECT s.source,s.source_session_id
+               FROM session_retrieval r JOIN sessions s ON s.id=r.session_id WHERE r.activity_at>?""",
+            (_instant(since),),
+        )
+
+    def hooks_active(self, since: float) -> bool:
+        row = self.one("SELECT id FROM hook_events WHERE timestamp>? LIMIT 1", (_instant(since),))
+        return row is not None
 
     def overview(self):
         totals = self.one(

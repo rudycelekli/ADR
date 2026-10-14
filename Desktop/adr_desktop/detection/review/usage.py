@@ -8,8 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from .config import command_prefix
-from .storage.files import atomic_json, read_private_json, strict_json
+from ...storage.files import atomic_json, read_private_json, strict_json
 
 LIMIT = 256 * 1024
 
@@ -46,7 +45,8 @@ def connection_status(state_dir):
         return False
 
 
-def connect(state_dir, *, enabled):
+def connect(state_dir, *, enabled, launcher):
+    """``launcher`` is the argv that starts ADR's command line, which serves ``review-statusline``."""
     if os.name == "nt":
         raise ValueError("Automatic status-line setup is currently supported on macOS and Linux")
     path = target_path()
@@ -73,7 +73,7 @@ def connect(state_dir, *, enabled):
     installed = {
         **(previous or {}),
         "type": "command",
-        "command": shlex.join([*command_prefix(), "review-statusline", "--state-dir", str(state_dir)]),
+        "command": shlex.join([*launcher, "review-statusline", "--state-dir", str(state_dir)]),
     }
     updated = {**config}
     if enabled:
@@ -91,9 +91,8 @@ def connect(state_dir, *, enabled):
     return {"connected": enabled, "path": str(path)}
 
 
-def report_usage(state_dir, raw):
-    from .local_client import request
-
+def report_usage(state_dir, raw, request):
+    """``request`` sends a call to ADR's local API, as Desktop's local client does."""
     payload = strict_json(raw, max_bytes=LIMIT)
     limits = payload.get("rate_limits", {})
     selected = {
@@ -114,12 +113,12 @@ def report_usage(state_dir, raw):
     )
 
 
-def status_line(state_dir):
+def status_line(state_dir, request):
     raw = sys.stdin.buffer.read(LIMIT + 1)
     if len(raw) > LIMIT:
         return 0
     try:
-        report_usage(state_dir, raw)
+        report_usage(state_dir, raw, request)
     except Exception:
         pass
     try:

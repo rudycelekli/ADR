@@ -2,12 +2,14 @@ import json
 import threading
 import time
 import uuid
+from datetime import datetime, timezone
 
 import pytest
 from conftest import sample_session
 
-from adr_desktop.review_process import ReviewError
-from adr_desktop.security_reviews import DEFAULTS, SecurityReviews, evidence_for, validate_report
+from adr_desktop.detection.review.coordinator import evidence_for, validate_report
+from adr_desktop.detection.review.runners import ReviewError
+from adr_desktop.security_reviews import DEFAULTS, NativeIdle, SecurityReviews
 
 
 class Driver:
@@ -299,3 +301,52 @@ def test_idempotency_key_cannot_switch_sessions(runtime):
     finished(runtime)
     with pytest.raises(ValueError, match="another session"):
         runtime.reviews.start("different", request_id)
+
+
+def test_history_names_the_sessions_in_the_review_list(runtime):
+    identifier = session(runtime)
+    described = runtime.store.describe_sessions([identifier, "missing"])
+    digest = runtime.store.session(identifier)["digest"]
+    assert described == {identifier: {"title": "Add input validation", "source": "claude", "digest": digest}}
+
+
+def test_history_reports_agent_activity_after_a_time(runtime):
+    captured = sample_session()
+    captured["timestamp"] = "2026-10-06T09:00:00Z"
+    runtime.store.ingest(captured)
+    runtime.store.execute(
+        """INSERT INTO hook_events(timestamp,harness,session_id,tool,decision,reason,paths)
+           VALUES (?,?,?,?,?,?,?)""",
+        ("2026-10-06T09:30:00.000+00:00", "claude", "synthetic", "Read", "allow", "", "[]"),
+    )
+    before, between, after = (
+        datetime(2026, 10, 6, hour, minute, tzinfo=timezone.utc).timestamp()
+        for hour, minute in ((8, 0), (9, 15), (10, 0))
+    )
+    assert runtime.store.active_sessions(before) == [{"source": "claude", "source_session_id": "one"}]
+    assert runtime.store.active_sessions(between) == []
+    assert (runtime.store.hooks_active(between), runtime.store.hooks_active(after)) == (True, False)
+
+
+def test_history_lists_sessions_in_chosen_projects_newest_activity_first(runtime):
+    for name, day, project in (("older", 1, "/workspace/sample"), ("newer", 2, "/workspace/sample"),
+                               ("elsewhere", 3, "/workspace/other")):
+        captured = sample_session(session_id=name, project=project)
+        captured["timestamp"] = f"2026-10-0{day}T09:00:00Z"
+        runtime.store.ingest(captured)
+    rows = runtime.store.recent_sessions(["/workspace/sample"])
+    listed = [(row["source_session_id"], row["source"], row["project"], row["message_count"]) for row in rows]
+    assert listed == [
+        ("newer", "claude", "/workspace/sample", 2),
+        ("older", "claude", "/workspace/sample", 2),
+    ]
+    assert all(row["digest"] == runtime.store.session(row["id"])["digest"] for row in rows)
+
+
+def test_device_idle_time_comes_from_the_menu_bar_app():
+    class Native:
+        def call(self, operation, arguments=None, timeout=30):
+            assert (operation, arguments, timeout) == ("review_idle_status", None, 2)
+            return {"idle_seconds": 1200}
+
+    assert NativeIdle(Native()).idle_seconds() == 1200

@@ -144,7 +144,7 @@ def main(argv=None):
     os.umask(0o077)
     try:
         if args.command == "review-supervise":
-            from .review_supervisor import supervise
+            from .detection.review.supervisor import supervise
 
             command = args.arguments[1:] if args.arguments[:1] == ["--"] else args.arguments
             return supervise(command, args.lifetime_fd, args.timeout)
@@ -210,17 +210,17 @@ def main(argv=None):
             # Add this as a side command to an existing status-line script.
             # Never log or forward the rest of its payload, which can contain
             # private session/workspace information.
-            from .review_usage import report_usage
+            from .detection.review.usage import report_usage
 
             try:
-                report_usage(args.state_dir, sys.stdin.buffer.read(256 * 1024 + 1))
+                report_usage(args.state_dir, sys.stdin.buffer.read(256 * 1024 + 1), request)
             except Exception:
                 pass  # A reporting failure must not disrupt the person's status line.
             return 0
         if args.command == "review-statusline":
-            from .review_usage import status_line
+            from .detection.review.usage import status_line
 
-            return status_line(args.state_dir)
+            return status_line(args.state_dir, request)
 
         if args.command == "migrate-vault":
             if not args.confirm:
