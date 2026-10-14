@@ -5,6 +5,8 @@ import pytest
 from conftest import FakePluginDriver
 
 from adr_desktop import agent_plugins
+from adr_desktop.detection.contracts import Operation
+from adr_desktop.detection.inline.artifacts import identify_operation
 from adr_desktop.integrations import agents
 
 HOST_ROOTS = ("CLAUDE_PLUGIN_ROOT", "PLUGIN_ROOT", "COPILOT_PLUGIN_ROOT", "ADR_PLUGIN_ROOT")
@@ -37,6 +39,19 @@ def test_configuration_path_follows_the_agents_own_roots_without_a_home(tmp_path
 def test_configuration_path_rejects_an_unknown_agent(tmp_path):
     with pytest.raises(ValueError, match="Unsupported"):
         agents.configuration_path("unknown", tmp_path)
+
+
+def test_the_agents_module_tells_detection_where_codex_keeps_its_mcp_servers(tmp_path, monkeypatch):
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "home"))
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path / "codex"))
+    config = tmp_path / "codex/config.toml"
+    config.parent.mkdir()
+    config.write_text('[mcp_servers.fixture]\nurl="https://fixture.example.invalid/mcp"\n')
+    operation = Operation(harness="codex", tool="mcp__fixture__lookup", arguments={}, cwd=str(tmp_path))
+    evidence = identify_operation(operation, agents)
+    assert [(item.subject["url"], item.location) for item in evidence.candidates] == [
+        ("https://fixture.example.invalid/mcp", str(config)),
+    ]
 
 
 @pytest.fixture

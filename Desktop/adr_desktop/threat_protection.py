@@ -1,20 +1,10 @@
 """Owner-managed artifact intelligence, bounded local checks, and denial receipts."""
 
 import copy
-import hashlib
 import json
-import os
 import threading
-from collections import Counter, OrderedDict
-from pathlib import Path
+from collections import OrderedDict
 
-from .artifact_identity import (
-    IdentityBudget,
-    configured_mcp_definitions,
-    inspect_file,
-    inspect_mcp_definition,
-    skill_roots,
-)
 from .config import utcnow
 from .detection.inline.feed.api_v1 import (
     BUNDLED_FEED_ID,
@@ -24,15 +14,12 @@ from .detection.inline.feed.api_v1 import (
     parse_feed_json,
     validate_generation,
 )
+from .detection.inline.installed import MAX_SCAN_PROJECTS, empty_scan, scan_installed
 from .detection.operation import printable
+from .integrations import agents
 from .storage.files import canonical
 from .threat_feed import load_bundled_feed
 
-HARNESS_NAMES = ("claude", "codex", "opencode", "copilot")
-MAX_SCAN_ITEMS = 512
-MAX_SCAN_FINDINGS = 100
-MAX_SCAN_PROJECTS = 24
-MAX_SCAN_ROOTS = 128
 MAX_POLICY_BYTES = 1024 * 1024
 SCAN_STATES = frozenset({"not_run", "complete", "partial", "error"})
 
@@ -69,13 +56,6 @@ def initialize_threats(previous):
     return {
         "enabled": enabled, "generation": generation, "imported_at": imported_at,
     }, None
-
-
-def _empty_scan():
-    return {
-        "state": "not_run", "checked_at": None, "generation": None, "stale": False,
-        "checked_items": 0, "skipped_items": 0, "findings": [], "issues": [],
-    }
 
 
 def _display(value, maximum=8192):
@@ -175,10 +155,10 @@ class ThreatProtection:
     def _scan(self):
         row = self.store.one("SELECT payload FROM artifact_scan WHERE id=1")
         if not row:
-            return _empty_scan()
+            return empty_scan()
         value = json.loads(row["payload"])
         if value.get("state") not in SCAN_STATES:
-            return _empty_scan()
+            return empty_scan()
         return value
 
     def summary(self):
@@ -263,159 +243,13 @@ class ThreatProtection:
             raise ThreatStateConflict("An installed-item check is already running")
         try:
             _, config = self._snapshot()
-            compiled = compile_generation(config["generation"])
-            result = _empty_scan()
-            result.update(state="complete", generation=compiled.digest, checked_at=utcnow())
-            issues, checked, findings, associations = Counter(), set(), {}, {}
-            budget = IdentityBudget(seconds=4, max_files=512, max_total_bytes=32 * 1024 * 1024)
-            inventory = self.store.settings().get("inventory_snapshot", {})
-            assets = inventory.get("assets", []) if isinstance(inventory, dict) else []
-            assets = assets if isinstance(assets, list) else []
-            if len(assets) > 2000:
-                issues["inventory_limit"] += 1
-            assets = [item for item in assets[:2000] if isinstance(item, dict)]
-
-            def consume(evidence, *, label=None, inventory_asset_id=None):
-                issues.update(evidence.unresolved)
-                for candidate in evidence.candidates:
-                    display_label = _display(label or candidate.label, 200)
-                    checked.add((candidate.location, display_label))
-                    for match in compiled.match(candidate.subject):
-                        key = canonical([match["indicator_id"], candidate.location, display_label])
-                        if len(findings) >= MAX_SCAN_FINDINGS and key not in findings:
-                            issues["finding_limit"] += 1
-                            continue
-                        links = associations.setdefault(key, set())
-                        if inventory_asset_id:
-                            links.add(inventory_asset_id)
-                        findings[key] = {
-                            "id": hashlib.sha256(key.encode()).hexdigest()[:32],
-                            **{field: match[field] for field in (
-                                "indicator_id", "source_id", "kind", "target_display",
-                                "summary", "references",
-                            )},
-                            "location": _display(candidate.location), "label": display_label,
-                            "inventory_asset_id": next(iter(links)) if len(links) == 1 else None,
-                        }
-
-            projects = [str(Path.home())]
-            projects.extend(row["project"] for row in self.store.rows(
+            projects = [row["project"] for row in self.store.rows(
                 "SELECT DISTINCT project FROM sessions WHERE project<>'' ORDER BY project LIMIT ?",
                 (MAX_SCAN_PROJECTS + 1,),
-            ) if Path(row["project"]).is_absolute())
-            projects = list(dict.fromkeys(projects))
-            if len(projects) > MAX_SCAN_PROJECTS:
-                issues["project_limit"] += 1
-            projects = projects[:MAX_SCAN_PROJECTS]
-
-            seen_configs = set()
-            for project in projects:
-                for harness in HARNESS_NAMES:
-                    try:
-                        budget.check()
-                    except ValueError:
-                        issues["check_limit"] += 1
-                        break
-                    diagnostics = []
-                    definitions = configured_mcp_definitions(
-                        harness, project, self.runtime.state_dir, budget=budget, diagnostics=diagnostics,
-                    )
-                    issues.update(diagnostics)
-                    for alias, definition, path in definitions:
-                        # Disabled entries are findings about configuration, not live use.
-                        key = (str(path), alias, canonical(definition), project)
-                        if key in seen_configs:
-                            continue
-                        seen_configs.add(key)
-                        consume(
-                            inspect_mcp_definition(definition, path, project, budget=budget),
-                            label=f"{alias} · {harness}",
-                        )
-
-            roots = []
-            for project in projects:
-                for harness in HARNESS_NAMES:
-                    roots.extend(skill_roots(harness, project))
-            files = {}
-
-            def add_manifest(manifest, asset_id=None):
-                try:
-                    canonical_path = Path(manifest).resolve(strict=False)
-                except (OSError, RuntimeError, ValueError):
-                    issues["file_unresolved"] += 1
-                    return
-                # Coalesce aliases such as macOS /var and /private/var before
-                # associating findings with a unique inventory record.
-                identifiers = files.setdefault(canonical_path, set())
-                if isinstance(asset_id, str) and asset_id:
-                    identifiers.add(asset_id)
-
-            for asset in assets:
-                path = asset.get("install_path") or asset.get("path")
-                if not isinstance(path, str) or not Path(path).is_absolute():
-                    continue
-                if asset.get("kind") == "skill":
-                    manifest = Path(path) if Path(path).name == "SKILL.md" else Path(path) / "SKILL.md"
-                    add_manifest(manifest, asset.get("asset_id"))
-                elif asset.get("kind") == "plugin":
-                    roots.append(Path(path) / "skills")
-            roots = list(dict.fromkeys(roots))
-            if len(roots) > MAX_SCAN_ROOTS:
-                issues["root_limit"] += 1
-            # Explicit roots, at most one hidden grouping directory; never a
-            # recursive device walk or a scan of arbitrary package dependencies.
-            for root in roots[:MAX_SCAN_ROOTS]:
-                if len(files) >= MAX_SCAN_ITEMS:
-                    issues["item_limit"] += 1
-                    break
-                try:
-                    budget.check()
-                    with os.scandir(root) as entries:
-                        for index, entry in enumerate(entries):
-                            if index >= MAX_SCAN_ITEMS or len(files) >= MAX_SCAN_ITEMS:
-                                issues["item_limit"] += 1
-                                break
-                            budget.check()
-                            if entry.is_dir(follow_symlinks=False):
-                                manifest = Path(entry.path) / "SKILL.md"
-                                if manifest.is_file():
-                                    add_manifest(manifest)
-                                elif entry.name.startswith("."):
-                                    with os.scandir(entry.path) as hidden:
-                                        for child_index, child in enumerate(hidden):
-                                            if child_index >= MAX_SCAN_ITEMS or len(files) >= MAX_SCAN_ITEMS:
-                                                issues["item_limit"] += 1
-                                                break
-                                            budget.check()
-                                            if child.is_dir(follow_symlinks=False):
-                                                nested = Path(child.path) / "SKILL.md"
-                                                if nested.is_file():
-                                                    add_manifest(nested)
-                            elif entry.is_symlink():
-                                issues["skill_symlink_not_enumerated"] += 1
-                except FileNotFoundError:
-                    continue
-                except (OSError, ValueError):
-                    issues["skill_root_unreadable"] += 1
-            if len(files) > MAX_SCAN_ITEMS:
-                issues["item_limit"] += len(files) - MAX_SCAN_ITEMS
-            for manifest, identifiers in list(files.items())[:MAX_SCAN_ITEMS]:
-                try:
-                    budget.check()
-                except ValueError:
-                    issues["check_limit"] += 1
-                    break
-                unique = set(value for value in identifiers if isinstance(value, str) and value)
-                consume(
-                    inspect_file(manifest, skill=True, budget=budget),
-                    label=manifest.parent.name,
-                    inventory_asset_id=next(iter(unique)) if len(unique) == 1 else None,
-                )
-            result.update(
-                state="partial" if issues else "complete",
-                checked_items=len(checked), skipped_items=sum(issues.values()),
-                findings=list(findings.values()),
-                issues=[{"reason": reason, "count": count} for reason, count in sorted(issues.items())],
+            )]
+            result = scan_installed(
+                config["generation"], self.store.settings().get("inventory_snapshot", {}), projects, agents,
+                checked_at=utcnow(),
             )
             self._persist_scan(result)
             return self.status()

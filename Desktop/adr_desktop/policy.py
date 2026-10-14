@@ -132,7 +132,7 @@ def event_fields(event: dict, harness: str) -> tuple[str, dict, str, str]:
 
 def event_operation(event: dict, harness: str) -> Operation:
     tool, arguments, cwd, _ = event_fields(event, harness)
-    return Operation(tool, arguments, cwd)
+    return Operation(harness, tool, arguments, cwd, event.get("mcp_server"))
 
 
 def evaluate(event: dict, harness: str, snapshot: dict) -> Decision:

@@ -38,7 +38,8 @@ def required_python_modules():
     required = {
         "adr_desktop.api", "adr_desktop.security_reviews",
         "adr_desktop.detection.contracts", "adr_desktop.detection.operation", "adr_desktop.detection.ports",
-        "adr_desktop.detection.inline.credentials", "adr_desktop.detection.inline.feed.api_v1",
+        "adr_desktop.detection.inline.artifacts", "adr_desktop.detection.inline.credentials",
+        "adr_desktop.detection.inline.installed", "adr_desktop.detection.inline.feed.api_v1",
         "adr_desktop.detection.inline.feed.contracts", "adr_desktop.detection.inline.feed.engine",
         "adr_desktop.detection.review.coordinator", "adr_desktop.detection.review.quota",
         "adr_desktop.detection.review.runners", "adr_desktop.detection.review.supervisor",

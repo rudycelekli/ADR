@@ -1,5 +1,6 @@
 """Interfaces detection needs from its host. Desktop fills each one, so detection never imports it."""
 
+from pathlib import Path
 from typing import Protocol
 
 
@@ -40,3 +41,10 @@ class DeviceIdle(Protocol):
 
     def idle_seconds(self) -> float:
         """Seconds since the owner last used the device. Raises when that is unknown."""
+
+
+class AgentConfig(Protocol):
+    """Where each agent keeps its config files, as Desktop's agent integrations know them."""
+
+    def configuration_path(self, harness: str) -> Path:
+        """The file the agent reads its hook configuration from. Raises ValueError for an unknown agent."""

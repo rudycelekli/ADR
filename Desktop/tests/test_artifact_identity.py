@@ -5,14 +5,16 @@ from pathlib import Path
 
 import pytest
 
-from adr_desktop.artifact_identity import (
+from adr_desktop.detection.inline.artifacts import (
     IdentityBudget,
-    identify_event,
+    identify_operation,
     inspect_command,
     inspect_file,
     inspect_mcp_definition,
     read_mcp_configurations,
 )
+from adr_desktop.integrations import agents
+from adr_desktop.policy import event_operation
 
 
 @pytest.fixture(autouse=True)
@@ -26,6 +28,11 @@ def isolated_identity_home(tmp_path, monkeypatch):
             monkeypatch.delenv(key)
     monkeypatch.setenv("CODEX_HOME", str(home / ".codex"))
     return home
+
+
+def identify(event, harness):
+    """Identity of an agent event as Desktop decodes it, with Desktop's agent config locations."""
+    return identify_operation(event_operation(event, harness), agents)
 
 
 def subjects(evidence):
@@ -247,14 +254,14 @@ def test_symlinked_npm_config_keeps_actual_registry_identity(
 
 
 def test_racing_npm_config_link_is_unresolved(tmp_path, isolated_identity_home, monkeypatch):
-    from adr_desktop import artifact_identity
+    from adr_desktop.detection.inline import artifacts
 
     target, changed = tmp_path / "first-config", tmp_path / "second-config"
     target.write_text("registry=https://registry.npmjs.org\n")
     changed.write_text("registry=https://private.example.invalid\n")
     link = isolated_identity_home / ".npmrc"
     link.symlink_to(target)
-    read = artifact_identity._read_regular
+    read = artifacts._read_regular
 
     def retarget(path, budget, maximum):
         raw = read(path, budget, maximum)
@@ -263,7 +270,7 @@ def test_racing_npm_config_link_is_unresolved(tmp_path, isolated_identity_home, 
             link.symlink_to(changed)
         return raw
 
-    monkeypatch.setattr(artifact_identity, "_read_regular", retarget)
+    monkeypatch.setattr(artifacts, "_read_regular", retarget)
     result = inspect_command("npm install fixture-package@1.2.3", str(tmp_path), environment={})
     assert not packages(result)
     assert result.unresolved
@@ -284,7 +291,7 @@ def test_symlinked_mcp_config_preserves_logical_format_and_location(tmp_path, is
     config.parent.mkdir(parents=True)
     config.symlink_to(target)
     event = {"tool_name": "mcp__fixture__lookup", "tool_input": {}, "cwd": str(tmp_path)}
-    result = identify_event(event, "codex", tmp_path)
+    result = identify(event, "codex")
     assert subjects(result) == [{"kind": "mcp_endpoint", "url": "https://fixture.example.invalid/mcp"}]
     assert result.candidates[0].location == str(config)
 
@@ -353,7 +360,7 @@ def test_named_skill_resolves_manifest_not_directory_name(tmp_path, harness, sur
     path.parent.mkdir(parents=True)
     path.write_text("---\nname: fixture\ndescription: inert fixture\n---\nNo action.\n")
     event = {"tool_name": "Skill", "tool_input": tool_input, "cwd": str(tmp_path)}
-    result = identify_event(event, harness, tmp_path)
+    result = identify(event, harness)
     assert {item["kind"] for item in subjects(result)} == {"file_sha256", "skill_sha256"}
     duplicate = path.parent.parent / "another" / "SKILL.md"
     if harness == "opencode":
@@ -361,7 +368,7 @@ def test_named_skill_resolves_manifest_not_directory_name(tmp_path, harness, sur
         duplicate = Path.home() / ".claude/skills/fixture/SKILL.md"
     duplicate.parent.mkdir(parents=True)
     duplicate.write_bytes(path.read_bytes())
-    result = identify_event(event, harness, tmp_path)
+    result = identify(event, harness)
     assert not result.candidates
     assert result.unresolved == ["skill_name_ambiguous"]
 
@@ -373,11 +380,11 @@ def test_skill_custom_codex_home_and_explicit_path(tmp_path, monkeypatch):
     path.write_text("---\nname: fixture\n---\nInert.\n")
     monkeypatch.setenv("CODEX_HOME", str(root))
     event = {"tool_name": "Skill", "tool_input": {"skill": "fixture"}, "cwd": str(tmp_path)}
-    assert identify_event(event, "codex", tmp_path).candidates
+    assert identify(event, "codex").candidates
     event["tool_input"] = {"path": str(path)}
-    assert identify_event(event, "codex", tmp_path).candidates
+    assert identify(event, "codex").candidates
     event["tool_input"] = {"path": str(path.parent)}
-    assert not identify_event(event, "codex", tmp_path).candidates
+    assert not identify(event, "codex").candidates
 
 
 def test_hash_limits_and_nonregular_files_are_not_clean(tmp_path):
@@ -428,9 +435,9 @@ def test_supported_file_reads_scripts_and_remediation(tmp_path):
     for command in (f"cat '{path}'", f"python3 '{path}'", f"bash -c 'head {path}'"):
         assert subjects(inspect_command(command, str(tmp_path), environment={}))[0]["kind"] == "file_sha256"
     for tool in ("Write", "Edit", "Delete"):
-        assert not identify_event(
+        assert not identify(
             {"tool_name": tool, "tool_input": {"file_path": str(path)}, "cwd": str(tmp_path)},
-            "codex", tmp_path,
+            "codex",
         ).candidates
 
 
@@ -468,32 +475,32 @@ def test_jsonc_mcp_definition_and_alias(tmp_path, isolated_identity_home):
     config.write_text('{"mcp": {/* note */ "fixture": {"type":"remote",'
                       '"url":"https://fixture.example.invalid/mcp",},},}')
     event = {"tool_name": "fixture_lookup", "tool_input": {}, "cwd": str(tmp_path)}
-    result = identify_event(event, "opencode", tmp_path)
+    result = identify(event, "opencode")
     assert subjects(result) == [{"kind": "mcp_endpoint", "url": "https://fixture.example.invalid/mcp"}]
     config.write_text('{"mcp":{"fixture":{"command":["npx","fixture-package@1.2.3"]}}}')
-    assert packages(identify_event(event, "opencode", tmp_path))[0]["name"] == "fixture-package"
+    assert packages(identify(event, "opencode"))[0]["name"] == "fixture-package"
 
 
 def test_mcp_fresh_config_conflicts_and_provenance(tmp_path, isolated_identity_home):
     project = tmp_path / ".mcp.json"
     project.write_text(json.dumps({"mcpServers": {"fixture": {"url": "https://one.example.invalid/mcp"}}}))
     event = {"tool_name": "mcp__fixture__lookup", "tool_input": {}, "cwd": str(tmp_path)}
-    assert subjects(identify_event(event, "claude", tmp_path))[0]["url"] == "https://one.example.invalid/mcp"
+    assert subjects(identify(event, "claude"))[0]["url"] == "https://one.example.invalid/mcp"
     project.write_text(json.dumps({"mcpServers": {"fixture": {"url": "https://two.example.invalid/mcp"}}}))
-    assert subjects(identify_event(event, "claude", tmp_path))[0]["url"] == "https://two.example.invalid/mcp"
+    assert subjects(identify(event, "claude"))[0]["url"] == "https://two.example.invalid/mcp"
     user = isolated_identity_home / ".claude.json"
     user.write_text(project.read_text())
-    result = identify_event(event, "claude", tmp_path)
+    result = identify(event, "claude")
     assert not result.candidates and "mcp_definition_conflict" in result.unresolved
     event["mcp_server"] = {"name": "fixture", "source": "project"}
-    assert subjects(identify_event(event, "claude", tmp_path))[0]["url"] == "https://two.example.invalid/mcp"
+    assert subjects(identify(event, "claude"))[0]["url"] == "https://two.example.invalid/mcp"
     event["mcp_server"]["source"] = "plugin"
-    assert not identify_event(event, "claude", tmp_path).candidates
+    assert not identify(event, "claude").candidates
 
 
 def test_mcp_duplicate_keys_invalid_shapes_and_secret_fields(tmp_path):
     (tmp_path / ".mcp.json").write_text('{"mcpServers":{"a":{},"a":{}}}')
-    records, errors = read_mcp_configurations("claude", str(tmp_path))
+    records, errors = read_mcp_configurations("claude", str(tmp_path), agents)
     assert not records and errors
     for definition in (
         {"url": "https://secret@fixture.example.invalid/mcp"},
