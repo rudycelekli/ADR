@@ -90,3 +90,17 @@ layers = [
     "adr_desktop.mcp_trust : adr_desktop.artifact_identity",
     "adr_desktop.integrations.agents",
 ]
+
+[[tool.importlinter.contracts]]
+name = "Detection imports nothing from Desktop except storage"
+type = "forbidden"
+source_modules = ["adr_desktop.detection"]
+forbidden_modules = ["adr_desktop.*"]
+ignore_imports = [
+    "adr_desktop.detection -> adr_desktop.storage",
+    "adr_desktop.detection -> adr_desktop.storage.**",
+    "adr_desktop.detection.** -> adr_desktop.storage",
+    "adr_desktop.detection.** -> adr_desktop.storage.**",
+]
+# Storage arrives with ticket 03; until then nothing matches the exception.
+unmatched_ignore_imports_alerting = "none"

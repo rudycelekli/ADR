@@ -16,7 +16,7 @@ from .artifact_identity import (
     skill_roots,
 )
 from .config import canonical, utcnow
-from .policy import printable
+from .detection.operation import printable
 from .threat_feed import (
     BUNDLED_FEED_ID,
     compile_generation,

@@ -19,8 +19,9 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .detection.operation import PATH_KEYS, SHELL_TOOLS, literal_shell_files, resolve_path
 from .integrations.agents import configuration_path
-from .policy import PATH_KEYS, SHELL_TOOLS, event_fields, literal_shell_files, resolve_path
+from .policy import event_operation
 from .threat_feed import normalize_endpoint, normalize_package_name, normalize_registry
 
 READ_TOOLS = {"read", "read_file", "view"}
@@ -882,7 +883,8 @@ def identify_event(event, harness, state_dir, *, budget=None, environment=None) 
     """Extract evidence from a supported pending operation; never execute it."""
     del state_dir  # Kept in the public interface for harness-specific future sources.
     budget = budget or IdentityBudget()
-    tool, arguments, cwd, _ = event_fields(event, harness)
+    operation = event_operation(event, harness)
+    tool, arguments, cwd = operation.tool, operation.arguments, operation.cwd
     result = Evidence()
     name = tool.lower()
     if name in READ_TOOLS:

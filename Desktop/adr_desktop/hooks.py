@@ -19,6 +19,7 @@ from .config import (
     utcnow,
 )
 from .credential_activity import NATIVE_SESSION_ID, credential_command, result_run_ids
+from .detection.operation import DIRECT_TOOLS, SHELL_TOOLS
 from .guard import _atomic_bytes, install_guard, publish_target
 from .integrations.agents import (
     _bundle_root,
@@ -29,7 +30,7 @@ from .integrations.agents import (
 )
 from .local_client import request
 from .mcp_trust import trusted_grant_id
-from .policy import DENIAL_REASONS, DIRECT_TOOLS, SHELL_TOOLS, Decision, event_fields, hook_output
+from .policy import DENIAL_REASONS, Decision, event_fields, hook_output
 from .protection import evaluate_operation
 from .secret_guard import VAULT_MESSAGE, check_file, detect_credentials
 

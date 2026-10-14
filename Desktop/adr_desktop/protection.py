@@ -3,8 +3,9 @@
 from pathlib import Path
 
 from .artifact_identity import READ_TOOLS, identify_event
+from .detection.operation import PATH_KEYS
 from .mcp_trust import trusted_tool
-from .policy import DENIAL_REASONS, PATH_KEYS, Decision, evaluate, event_fields
+from .policy import DENIAL_REASONS, Decision, evaluate, event_fields
 from .threat_feed import compile_generation
 
 

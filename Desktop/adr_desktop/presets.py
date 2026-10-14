@@ -3,7 +3,8 @@
 import platform
 from pathlib import Path
 
-from .policy import _comparison, _same_file, _within, resolve_path, validate_rule
+from .detection.operation import resolve_path
+from .policy import _comparison, _same_file, _within, validate_rule
 
 STARTER_ID = "sensitive-paths-v1"
 
