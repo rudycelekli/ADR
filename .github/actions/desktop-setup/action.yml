@@ -28,8 +28,6 @@ runs:
           Desktop/uv.lock
           Sensor/pyproject.toml
           Sensor/uv.lock
-          Protection/pyproject.toml
-          Protection/uv.lock
     - name: Install locked dependencies
       shell: bash
       working-directory: ${{ github.workspace }}

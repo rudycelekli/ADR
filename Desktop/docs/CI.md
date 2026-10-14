@@ -18,7 +18,7 @@ to `main` or change the default branch to enable it.
 | --- | --- |
 | Lint and workflow validation | Python lint, import boundaries (import-linter), browser/adapter JavaScript syntax, actionlint, and unchanged lockfiles |
 | Desktop tests | The full unit/API/guardian/synthetic CLI suite on Linux with Python 3.11 and 3.13, and macOS with Python 3.11 |
-| Shared component tests | Complete Sensor (including Discovery) and Protection suites in their own locked environments; the Sensor and Protection wheels are also installed and exercised outside the checkout without Desktop |
+| Shared component tests | The complete Sensor suite (including Discovery) in its own locked environment; the Sensor wheel is also installed and exercised outside the checkout without Desktop |
 | Browser workflows | Fresh-profile setup and consent, overview, navigation, session retrieval, credential-to-session links, malicious artifacts, and Security reviews, using real loopback APIs and synthetic data |
 | macOS preview | Separate Apple Silicon and Intel builds, frozen parser/dependency checks, archive extraction, signature verification, native self-tests, and packaged-core/MCP/guardian smoke checks |
 | Desktop CI | A stable aggregate check that fails if any required job fails, is cancelled, or is skipped |

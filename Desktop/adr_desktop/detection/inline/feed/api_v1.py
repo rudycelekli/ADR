@@ -4,7 +4,14 @@ Obtain CompiledGeneration from compile_generation(); its private indexes and
 constructor layout are implementation details, not part of the v1 contract.
 """
 
-from .artifacts import (
+from .contracts import (
+    CONTRACT_VERSION,
+    ArtifactMatchV1,
+    FeedV1,
+    GenerationSummaryV1,
+    GenerationV1,
+)
+from .engine import (
     BUNDLED_FEED_ID,
     KINDS,
     MAX_DEPTH,
@@ -23,13 +30,6 @@ from .artifacts import (
     parse_feed_json,
     validate_feed,
     validate_generation,
-)
-from .contracts import (
-    CONTRACT_VERSION,
-    ArtifactMatchV1,
-    FeedV1,
-    GenerationSummaryV1,
-    GenerationV1,
 )
 
 __all__ = [

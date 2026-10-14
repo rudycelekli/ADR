@@ -7,7 +7,6 @@ name = "adr-desktop"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "adr-protection" },
     { name = "adr-sensor" },
     { name = "fastapi" },
     { name = "uvicorn" },
@@ -25,7 +24,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "adr-protection", editable = "../Protection" },
     { name = "adr-sensor", editable = "../Sensor" },
     { name = "fastapi", specifier = ">=0.115,<1" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28" },
@@ -35,18 +33,6 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.11" },
     { name = "uvicorn", specifier = ">=0.30,<1" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "adr-protection"
-version = "0.1.0"
-source = { editable = "../Protection" }
-
-[package.metadata]
-requires-dist = [
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.11" },
 ]
 provides-extras = ["dev"]
 

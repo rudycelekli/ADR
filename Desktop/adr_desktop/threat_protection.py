@@ -16,17 +16,17 @@ from .artifact_identity import (
     skill_roots,
 )
 from .config import utcnow
-from .detection.operation import printable
-from .storage.files import canonical
-from .threat_feed import (
+from .detection.inline.feed.api_v1 import (
     BUNDLED_FEED_ID,
     compile_generation,
     compose_generation,
     generation_summary,
-    load_bundled_feed,
     parse_feed_json,
     validate_generation,
 )
+from .detection.operation import printable
+from .storage.files import canonical
+from .threat_feed import load_bundled_feed
 
 HARNESS_NAMES = ("claude", "codex", "opencode", "copilot")
 MAX_SCAN_ITEMS = 512

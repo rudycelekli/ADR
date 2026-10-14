@@ -3,10 +3,10 @@ import json
 import pytest
 from conftest import grant_token
 
+from adr_desktop.detection.inline.credentials import detect_prompt_credentials
 from adr_desktop.environment_vault import PROMPT_MESSAGE, validate_entry
 from adr_desktop.mcp_server import tools_for
 from adr_desktop.native import NativeUnavailable
-from adr_desktop.secret_guard import detect_prompt_credentials
 from adr_desktop.storage.files import canonical, read_private_json
 
 

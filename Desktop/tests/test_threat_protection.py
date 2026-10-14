@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 from conftest import grant_token
 
+from adr_desktop.detection.inline.feed.api_v1 import BUNDLED_FEED_ID, compile_generation
 from adr_desktop.policy import Decision
 from adr_desktop.protection import evaluate_operation
 from adr_desktop.storage.files import canonical, read_private_json
-from adr_desktop.threat_feed import BUNDLED_FEED_ID, compile_generation
 from adr_desktop.threat_protection import ThreatStateConflict, initialize_threats
 
 BODY = b"---\nname: harmless-fixture\n---\nInert local test; never execute.\n"
@@ -363,7 +363,7 @@ def test_baseline_growth_cannot_publish_a_policy_too_large_for_the_offline_reade
 
 
 def test_new_generation_receipt_waits_for_atomic_publication(runtime, tmp_path, monkeypatch):
-    from adr_desktop.threat_feed import compose_generation
+    from adr_desktop.detection.inline.feed.api_v1 import compose_generation
 
     path = skill_fixture(tmp_path)
     candidate = copy.deepcopy(runtime.policy)

@@ -26,6 +26,15 @@ class SessionSource(Protocol):
         """Whether an agent hook ran after ``since``."""
 
 
+class SavedValueCheck(Protocol):
+    """Whether text contains a credential value the owner saved in ADR. Values never leave the vault."""
+
+    def check(self, text: str, purpose: str) -> tuple[bool, list[str]]:
+        """Whether ``text`` contains a saved value, and the variable names of the saved values it contains.
+
+        ``purpose`` is "prompt" or "output". Raises when the saved values cannot be checked."""
+
+
 class DeviceIdle(Protocol):
     """How long the owner has left the device alone."""
 

@@ -11,7 +11,7 @@ merely because it is unfamiliar. A non-match is not a safety certificate.
 
 ## What is in the list?
 
-The bundled [artifact list](../adr_desktop/data/malicious_artifacts.json) is
+The bundled [artifact list](../adr_desktop/detection/inline/feed/malicious_artifacts.json) is
 separate from Detection's behavioral threat taxonomy. Its initial four records
 cover eight exact malicious package releases and one published malicious binary
 hash, with links to primary public disclosures.

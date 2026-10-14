@@ -397,9 +397,9 @@ The fresh-profile setup suite checks passive navigation, explicit capture,
 connection consent/cancellation, partial installation and retry, and narrow/dark
 layouts. Use a separate build output to keep a running app unchanged.
 
-The extracted [Protection library](../Protection/) has its own tests and wheel
-check. Desktop imports it in-process and retains its existing enforcement,
-native vault, storage, and authorization boundaries.
+The artifact feed engine lives in [detection's inline part](adr_desktop/detection/inline/feed/);
+its v1 contract tests and fixed fixtures run with Desktop's tests. Desktop retains
+its existing enforcement, native vault, storage, and authorization boundaries.
 Desktop uses [Sensor](../Sensor/) and the Discovery package inside it only through
 `adr_sensor.api` and `adr_discovery.api`; `lint-imports` enforces this.
 For interactive MCP/browser testing and repeatable improvement passes, see

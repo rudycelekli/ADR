@@ -19,10 +19,10 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .detection.inline.feed.api_v1 import normalize_endpoint, normalize_package_name, normalize_registry
 from .detection.operation import PATH_KEYS, SHELL_TOOLS, literal_shell_files, resolve_path
 from .integrations.agents import configuration_path
 from .policy import event_operation
-from .threat_feed import normalize_endpoint, normalize_package_name, normalize_registry
 
 READ_TOOLS = {"read", "read_file", "view"}
 _ASSIGNMENT = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)=(.*)", re.S)
