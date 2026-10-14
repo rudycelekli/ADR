@@ -4,7 +4,7 @@
 
 ADR Sensor is a Python library that collects telemetry from AI coding agents to enable security monitoring, threat detection, and observability. It parses logs from multiple AI agent platforms and normalizes them into a unified schema for downstream analysis.
 
-The `adr-sensor` package also contains **ADR Discovery**, which inventories the AI binaries, agents, MCP servers and skills on an endpoint. It is a separate import package, `adr_discovery`, with its own `adr-discovery` command; see [DISCOVERY.md](DISCOVERY.md). The two import packages never import each other.
+The `adr-sensor` package also contains **ADR Discovery**, which inventories the AI binaries, agents, MCP servers and skills on an endpoint. It is a separate import package, `adr_discovery`, with its own `adr-discovery` command; see [DISCOVERY.md](DISCOVERY.md). The two import packages never import each other or ADR Desktop, which uses them only through `adr_sensor.api` and `adr_discovery.api`; Desktop's CI checks these rules with import-linter.
 
 > **Paper:** [ADR: An Agentic Detection System for Enterprise Agentic AI Security](https://arxiv.org/abs/2605.17380)  
 > **Code:** [github.com/uber/ADR](https://github.com/uber/ADR)
@@ -764,12 +764,17 @@ adr-sensor/
 │   ├── __init__.py          # Package exports
 │   ├── api.py               # Public interface for host programs
 │   ├── cli.py               # CLI entry point
+│   ├── diagnostics.py       # Content-free operational records
+│   ├── host_identity.py     # Identity of the host the sensor runs on
 │   ├── observer.py          # AgentObserver orchestrator
+│   ├── sensor_log.py        # Leveled runtime logging
 │   ├── exporters/
 │   │   ├── config.py        # OTLP/HTTP JSON configuration
+│   │   ├── delivery_checkpoint.py # Incremental OTLP delivery acknowledgements
 │   │   └── opentelemetry.py # OpenTelemetry Logs exporter
 │   ├── parsers/
 │   │   ├── base_parser.py   # Abstract base class
+│   │   ├── antigravity_parser.py
 │   │   ├── claude_parser.py
 │   │   ├── cursor_parser.py
 │   │   ├── cline_parser.py
@@ -784,17 +789,21 @@ adr-sensor/
 │   │   ├── agent_event_schema.py    # AgentEvent, ChatMessage, ToolUsage
 │   │   └── system_config_schema.py  # SystemConfiguration
 │   └── utils/
+│       ├── codex_context.py
+│       ├── platform_paths.py
 │       ├── string_utils.py
 │       └── timestamp_utils.py
 ├── adr_discovery/           # ADR Discovery (see DISCOVERY.md)
 │   ├── api.py               # Public interface for host programs
 │   ├── cli.py               # adr-discovery entry point
+│   ├── pipeline.py          # Composes the pipeline stages (layout in DISCOVERY.md)
 │   └── catalog/catalog.json # Known-tool catalog shipped in the wheel
 ├── tests/
 │   ├── sensor/
 │   ├── discovery/           # Endpoint harness; unit/ holds module tests
 │   └── wheel_smoke.py       # Checks an installed wheel outside the checkout
 ├── examples/
+│   ├── demo.py
 │   └── opentelemetry-config.json
 ├── CONTRIBUTING.md
 ├── DISCOVERY.md

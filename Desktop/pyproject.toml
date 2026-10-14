@@ -60,15 +60,62 @@ type = "independence"
 modules = ["adr_sensor", "adr_discovery"]
 
 [[tool.importlinter.contracts]]
+name = "Sensor's and Discovery's api modules sit on top: nothing inside the packages imports them"
+type = "layers"
+containers = ["adr_sensor", "adr_discovery"]
+# Every top-level module is listed, so a new one fails here until it is also added to the
+# Desktop contract below. Parentheses mark a module only one of the two packages has.
+exhaustive = true
+layers = [
+    "api",
+    """cli : (catalog) : (contracts) : (coverage) : (diagnostics) : (enumerator) : (exporters) :
+    (extractor) : (host_identity) : (identifier) : (judge) : (observer) : (parsers) : (pipeline) :
+    (redact) : (reporter) : (resolver) : (schemas) : (sensor_log) : (utils) : (world)""",
+]
+
+[[tool.importlinter.contracts]]
 name = "Desktop uses Sensor and Discovery only through their api modules"
 type = "forbidden"
 source_modules = ["adr_desktop"]
-forbidden_modules = ["adr_sensor", "adr_discovery"]
-ignore_imports = ["adr_desktop.** -> adr_sensor.api", "adr_desktop.** -> adr_discovery.api"]
+# Every top-level module of the two packages except api.
+forbidden_modules = [
+    "adr_sensor.cli",
+    "adr_sensor.diagnostics",
+    "adr_sensor.exporters",
+    "adr_sensor.host_identity",
+    "adr_sensor.observer",
+    "adr_sensor.parsers",
+    "adr_sensor.schemas",
+    "adr_sensor.sensor_log",
+    "adr_sensor.utils",
+    "adr_discovery.catalog",
+    "adr_discovery.cli",
+    "adr_discovery.contracts",
+    "adr_discovery.coverage",
+    "adr_discovery.enumerator",
+    "adr_discovery.extractor",
+    "adr_discovery.identifier",
+    "adr_discovery.judge",
+    "adr_discovery.pipeline",
+    "adr_discovery.redact",
+    "adr_discovery.reporter",
+    "adr_discovery.resolver",
+    "adr_discovery.world",
+]
+# The api modules import the internals themselves.
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
-name = "The hook does not import the server, runtime, API, review code or Discovery"
+name = "Desktop does not import the Sensor and Discovery package roots, which re-export internals"
+type = "forbidden"
+source_modules = ["adr_desktop", "adr_desktop.**"]
+forbidden_modules = ["adr_sensor", "adr_discovery"]
+# Only the two root modules: as packages they would include the api modules.
+as_packages = false
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "The hook does not import the server, runtime, API, store, database, reviews, Sensor or Discovery"
 type = "forbidden"
 source_modules = ["adr_desktop.hooks", "adr_desktop.prompt_guard"]
 forbidden_modules = [
@@ -77,8 +124,11 @@ forbidden_modules = [
     "starlette",
     "adr_desktop.runtime",
     "adr_desktop.api",
+    "adr_desktop.store",
+    "adr_desktop.storage.database",
     "adr_desktop.detection.review",
     "adr_desktop.security_reviews",
+    "adr_sensor",
     "adr_discovery",
 ]
 
@@ -93,50 +143,42 @@ layers = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "Detection imports nothing from Desktop except storage"
-type = "forbidden"
-source_modules = ["adr_desktop.detection"]
-forbidden_modules = ["adr_desktop.*"]
-ignore_imports = [
-    "adr_desktop.detection -> adr_desktop.storage",
-    "adr_desktop.detection -> adr_desktop.storage.**",
-    "adr_desktop.detection.** -> adr_desktop.storage",
-    "adr_desktop.detection.** -> adr_desktop.storage.**",
+name = "Desktop's subpackages import no flat Desktop module, and each imports only the layers below it"
+type = "layers"
+containers = ["adr_desktop"]
+# Every module in adr_desktop is listed, so a new one fails here until it is placed in a layer.
+exhaustive = true
+layers = [
+    """__main__ : access_status : agent_plugins : api : approval_queue : cli : collector : config :
+    conversation_view : credential_activity : evaluate : guard : hooks : local_client : mcp_server :
+    mcp_trust : native : prompt_guard : runtime : security_reviews : store : threat_feed :
+    threat_protection""",
+    "integrations",
+    "protection | vault",
+    "detection",
+    "storage",
 ]
-# Storage arrives with ticket 03; until then nothing matches the exception.
-unmatched_ignore_imports_alerting = "none"
 
 [[tool.importlinter.contracts]]
 name = "Detection's review part imports no Desktop module except storage's file helpers"
 type = "forbidden"
 source_modules = ["adr_desktop.detection.review"]
-# The contract above already keeps all of detection off Desktop's other modules. Review gets the
-# database from Desktop, so it does not import the rest of storage either.
+# The layers contract above already keeps all of detection off Desktop's other modules. Review gets
+# the database from Desktop, so it does not import the rest of storage either.
 forbidden_modules = ["adr_desktop.storage.database", "adr_desktop.storage.ids"]
 
 [[tool.importlinter.contracts]]
-name = "Protection imports nothing but detection"
+name = "Protection imports no storage, Sensor or Discovery: with the layers, nothing but detection"
 type = "forbidden"
 source_modules = ["adr_desktop.protection"]
-forbidden_modules = ["adr_desktop.*", "adr_sensor", "adr_discovery"]
-ignore_imports = ["adr_desktop.protection.** -> adr_desktop.detection.**"]
+forbidden_modules = ["adr_desktop.storage", "adr_sensor", "adr_discovery"]
 # What detection itself imports is detection's own contract.
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
-name = "Vault imports nothing but detection and storage"
+name = "Vault imports no Sensor or Discovery: with the layers, nothing but detection and storage"
 type = "forbidden"
 source_modules = ["adr_desktop.vault"]
-forbidden_modules = ["adr_desktop.*", "adr_sensor", "adr_discovery"]
-ignore_imports = [
-    "adr_desktop.vault.** -> adr_desktop.detection.**",
-    "adr_desktop.vault.** -> adr_desktop.storage.**",
-]
+forbidden_modules = ["adr_sensor", "adr_discovery"]
 # What detection itself imports is detection's own contract.
 allow_indirect_imports = true
-
-[[tool.importlinter.contracts]]
-name = "Storage imports nothing else from Desktop"
-type = "forbidden"
-source_modules = ["adr_desktop.storage"]
-forbidden_modules = ["adr_desktop.*"]

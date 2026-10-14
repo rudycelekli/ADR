@@ -57,9 +57,16 @@ This repository contains the open-source **ADR Discovery**, **ADR Sensor**, **AD
 | -------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------ |
 | [Desktop/](Desktop/)                               | ADR Desktop preview        | Local menu-bar app, session Insights, file hooks, and credential brokering for individual users |
 | [Sensor/adr_discovery/](Sensor/adr_discovery/)     | ADR Discovery              | Inventory the AI apps, CLI agents, IDE extensions, model runtimes, and MCP servers on an endpoint, and flag unknown surfaces for review |
-| [Sensor/](Sensor/)                                 | ADR Observability          | Collect and normalize agent telemetry from Claude Code, Cursor, Codex, GitHub Copilot CLI, DeepSeek Harness, opencode, Claude Desktop, and others |
+| [Sensor/adr_sensor/](Sensor/adr_sensor/)           | ADR Observability          | Collect and normalize agent telemetry from Claude Code, Cursor, Codex, GitHub Copilot CLI, DeepSeek Harness, opencode, Claude Desktop, and others |
 | [Detection/](Detection/)                           | ADR Benchmark + Detection  | Dual-agent detector, 134 MCP servers, 304 benchmark tasks, baselines, figure scripts |
 | [docs/REPRODUCIBILITY.md](docs/REPRODUCIBILITY.md) | Evaluation                 | Step-by-step workflow to reproduce benchmark detection and paper figures             |
+
+Desktop and Sensor ship as two Python packages. `adr-sensor` ([Sensor/](Sensor/))
+holds the `adr_sensor` and `adr_discovery` import packages and works on its own. `adr-desktop`
+([Desktop/](Desktop/)) holds the app, with its storage, detection, protection, vault and
+integrations subpackages, and depends on one exact `adr-sensor` version. See
+[Desktop components](Desktop/docs/COMPONENTS.md#packages-and-import-rules) for the import rules
+between them. `Detection/` is a separate research project with its own environment.
 
 ## Quick start: ADR Detection
 
