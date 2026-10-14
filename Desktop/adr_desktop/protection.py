@@ -2,11 +2,12 @@
 
 from pathlib import Path
 
-from .artifact_identity import READ_TOOLS, identify_event
+from .detection.inline.artifacts import READ_TOOLS, identify_operation
 from .detection.inline.feed.api_v1 import compile_generation
 from .detection.operation import PATH_KEYS
+from .integrations import agents
 from .mcp_trust import trusted_tool
-from .policy import DENIAL_REASONS, Decision, evaluate, event_fields
+from .policy import DENIAL_REASONS, Decision, evaluate, event_fields, event_operation
 
 
 def evaluate_operation(event, harness, snapshot, *, state_dir, allow_adr_trust=True,
@@ -39,7 +40,7 @@ def evaluate_operation(event, harness, snapshot, *, state_dir, allow_adr_trust=T
             or path.startswith(("~", "file:")) for path in paths
         ):
             return base
-    evidence = identify_event(event, harness, state_dir, environment=environment)
+    evidence = identify_operation(event_operation(event, harness), agents, environment=environment)
     for candidate in evidence.candidates:
         matches = generation.match(candidate.subject)
         if matches:

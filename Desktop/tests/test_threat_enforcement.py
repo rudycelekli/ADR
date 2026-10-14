@@ -74,7 +74,7 @@ def test_existing_file_deny_short_circuits_inspection(runtime, tmp_path, monkeyp
     def forbidden(*_args, **_kwargs):
         raise AssertionError("A file already blocked by policy must not be hashed")
 
-    monkeypatch.setattr("adr_desktop.protection.identify_event", forbidden)
+    monkeypatch.setattr("adr_desktop.protection.identify_operation", forbidden)
     decision = evaluate_operation(event, "codex", protected(runtime.policy), state_dir=runtime.state_dir)
     assert decision.reason_code == "protected_path"
 
@@ -288,7 +288,7 @@ def test_daemon_scope_never_resolves_missing_harness_context(runtime, tmp_path, 
     def forbidden(*_args, **_kwargs):
         raise AssertionError("Missing process context must not be inferred by the daemon")
 
-    monkeypatch.setattr("adr_desktop.protection.identify_event", forbidden)
+    monkeypatch.setattr("adr_desktop.protection.identify_operation", forbidden)
     event = {"tool_name": tool, "tool_input": arguments, "cwd": str(tmp_path)}
     decision = evaluate_operation(event, "codex", protected(runtime.policy), state_dir=runtime.state_dir,
                                   allow_adr_trust=False, artifact_scope="direct_files")

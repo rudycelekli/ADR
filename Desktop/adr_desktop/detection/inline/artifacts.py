@@ -19,10 +19,10 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .detection.inline.feed.api_v1 import normalize_endpoint, normalize_package_name, normalize_registry
-from .detection.operation import PATH_KEYS, SHELL_TOOLS, literal_shell_files, resolve_path
-from .integrations.agents import configuration_path
-from .policy import event_operation
+from ..contracts import Operation
+from ..operation import PATH_KEYS, SHELL_TOOLS, literal_shell_files, resolve_path
+from ..ports import AgentConfig
+from .feed.api_v1 import normalize_endpoint, normalize_package_name, normalize_registry
 
 READ_TOOLS = {"read", "read_file", "view"}
 _ASSIGNMENT = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)=(.*)", re.S)
@@ -228,7 +228,7 @@ def _config(path: Path, budget: IdentityBudget):
     return value
 
 
-def configuration_files(harness: str, cwd: str) -> list[Path]:
+def configuration_files(harness: str, cwd: str, agents: AgentConfig) -> list[Path]:
     """Known user/project files only; these are not a recursive device scan."""
     directory = Path(cwd)
     if not directory.is_absolute() or len(directory.parents) > 24:
@@ -238,7 +238,7 @@ def configuration_files(harness: str, cwd: str) -> list[Path]:
     if harness == "claude":
         files = [home / ".claude.json", *(root / ".mcp.json" for root in roots)]
     elif harness == "codex":
-        files = [configuration_path("codex").parent / "config.toml",
+        files = [agents.configuration_path("codex").parent / "config.toml",
                  *(root / ".codex/config.toml" for root in roots)]
     elif harness == "opencode":
         config_home = Path(os.environ.get("XDG_CONFIG_HOME", str(home / ".config")))
@@ -251,12 +251,12 @@ def configuration_files(harness: str, cwd: str) -> list[Path]:
     return list(dict.fromkeys(files))
 
 
-def read_mcp_configurations(harness, cwd, *, budget=None):
+def read_mcp_configurations(harness, cwd, agents, *, budget=None):
     """Return [(alias, definition, config_path, scope)], plus closed error codes."""
     budget = budget or IdentityBudget()
     records, unresolved = [], []
     try:
-        files = configuration_files(harness, cwd)
+        files = configuration_files(harness, cwd, agents)
     except ValueError:
         return [], ["config_scope"]
     key = {"claude": "mcpServers", "codex": "mcp_servers", "opencode": "mcp",
@@ -288,11 +288,10 @@ def read_mcp_configurations(harness, cwd, *, budget=None):
     return records, list(dict.fromkeys(unresolved))
 
 
-def configured_mcp_definitions(harness, cwd, state_dir, *, budget=None, diagnostics=None):
+def configured_mcp_definitions(harness, cwd, agents, *, budget=None, diagnostics=None):
     """Scan adapter: no ambiguous alias is represented as an effective live server."""
-    del state_dir
     budget = budget or IdentityBudget()
-    records, errors = read_mcp_configurations(harness, cwd, budget=budget)
+    records, errors = read_mcp_configurations(harness, cwd, agents, budget=budget)
     aliases = [record[0] for record in records]
     if len(aliases) != len(set(aliases)):
         errors.append("mcp_definition_conflict")
@@ -853,12 +852,12 @@ def inspect_mcp_definition(definition, config_path, cwd, *, budget=None, environ
     return result
 
 
-def _mcp_call(event, harness, cwd, budget) -> Evidence:
-    name = event.get("tool_name", event.get("toolName", ""))
-    provenance = event.get("mcp_server")
+def _mcp_call(operation, agents, budget) -> Evidence:
+    name, harness, cwd = operation.tool, operation.harness, operation.cwd
+    provenance = operation.mcp_server
     if not isinstance(name, str):
         return Evidence()
-    records, unresolved = read_mcp_configurations(harness, cwd, budget=budget)
+    records, unresolved = read_mcp_configurations(harness, cwd, agents, budget=budget)
     if unresolved:
         return Evidence(unresolved=unresolved)
     if provenance is not None:
@@ -879,12 +878,11 @@ def _mcp_call(event, harness, cwd, budget) -> Evidence:
     return inspect_mcp_definition(definition, path, cwd, budget=budget)
 
 
-def identify_event(event, harness, state_dir, *, budget=None, environment=None) -> Evidence:
+def identify_operation(operation: Operation, agents: AgentConfig, *, budget=None,
+                       environment=None) -> Evidence:
     """Extract evidence from a supported pending operation; never execute it."""
-    del state_dir  # Kept in the public interface for harness-specific future sources.
     budget = budget or IdentityBudget()
-    operation = event_operation(event, harness)
-    tool, arguments, cwd = operation.tool, operation.arguments, operation.cwd
+    tool, arguments, cwd, harness = operation.tool, operation.arguments, operation.cwd, operation.harness
     result = Evidence()
     name = tool.lower()
     if name in READ_TOOLS:
@@ -903,6 +901,6 @@ def identify_event(event, harness, state_dir, *, budget=None, environment=None) 
                                           str(directory), budget=budget, environment=environment))
         except (ValueError, OSError, RuntimeError):
             result.unresolved.append("shell_unresolved")
-    elif tool.startswith("mcp__") or event.get("mcp_server") or harness == "opencode":
-        result.extend(_mcp_call(event, harness, cwd, budget))
+    elif tool.startswith("mcp__") or operation.mcp_server or harness == "opencode":
+        result.extend(_mcp_call(operation, agents, budget))
     return result

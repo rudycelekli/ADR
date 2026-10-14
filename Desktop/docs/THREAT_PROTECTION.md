@@ -208,7 +208,7 @@ hooks or bypassed harness paths provide no enforcement.
 
 ```sh
 uv run pytest -q tests/test_threat_feed.py tests/test_artifact_identity.py \
-  tests/test_threat_enforcement.py tests/test_threat_protection.py
+  tests/test_detection_artifacts.py tests/test_threat_enforcement.py tests/test_threat_protection.py
 uv run python scripts/threats_ui_qa.py
 uv run python scripts/community_ui_lab.py --threats
 ```
