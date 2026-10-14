@@ -13,6 +13,7 @@ from .config import command_prefix, utcnow
 from .credential_activity import NATIVE_SESSION_ID, credential_command, result_run_ids
 from .detection.inline.credentials import VAULT_MESSAGE, check_file, detect_credentials
 from .detection.operation import DIRECT_TOOLS, SHELL_TOOLS
+from .evaluate import evaluate_operation
 from .guard import _atomic_bytes, install_guard, publish_target
 from .integrations.agents import (
     _bundle_root,
@@ -21,10 +22,10 @@ from .integrations.agents import (
     opencode_plugin_installed,
     plugin_root,
 )
+from .integrations.events import event_fields, hook_output
 from .local_client import request
 from .mcp_trust import trusted_grant_id
-from .policy import DENIAL_REASONS, Decision, event_fields, hook_output
-from .protection import evaluate_operation
+from .protection.contracts import DENIAL_REASONS, Decision
 from .storage.files import MAX_JSON_BYTES, atomic_json, canonical, read_private_json, strict_json
 
 MARKER = "adr-desktop-file-guard"

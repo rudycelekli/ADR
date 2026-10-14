@@ -10,10 +10,10 @@ from types import SimpleNamespace
 import pytest
 
 from adr_desktop.detection.inline.feed.api_v1 import BUNDLED_FEED_ID, compose_generation
+from adr_desktop.evaluate import evaluate_operation
 from adr_desktop.guard import install_guard
 from adr_desktop.hooks import run_hook
-from adr_desktop.policy import Decision
-from adr_desktop.protection import evaluate_operation
+from adr_desktop.protection.contracts import Decision
 from adr_desktop.storage.files import atomic_json
 from adr_desktop.threat_feed import load_bundled_feed
 
@@ -74,13 +74,13 @@ def test_existing_file_deny_short_circuits_inspection(runtime, tmp_path, monkeyp
     def forbidden(*_args, **_kwargs):
         raise AssertionError("A file already blocked by policy must not be hashed")
 
-    monkeypatch.setattr("adr_desktop.protection.identify_operation", forbidden)
+    monkeypatch.setattr("adr_desktop.evaluate.identify_operation", forbidden)
     decision = evaluate_operation(event, "codex", protected(runtime.policy), state_dir=runtime.state_dir)
     assert decision.reason_code == "protected_path"
 
 
 def test_trusted_adr_pass_still_receives_artifact_check(runtime, tmp_path, monkeypatch):
-    monkeypatch.setattr("adr_desktop.protection.trusted_tool", lambda *_: True)
+    monkeypatch.setattr("adr_desktop.evaluate.trusted_tool", lambda *_: True)
     decision = evaluate_operation(command_event(tmp_path), "codex", protected(runtime.policy),
                                   state_dir=runtime.state_dir)
     assert decision.reason_code == "known_malicious_artifact"
@@ -288,7 +288,7 @@ def test_daemon_scope_never_resolves_missing_harness_context(runtime, tmp_path, 
     def forbidden(*_args, **_kwargs):
         raise AssertionError("Missing process context must not be inferred by the daemon")
 
-    monkeypatch.setattr("adr_desktop.protection.identify_operation", forbidden)
+    monkeypatch.setattr("adr_desktop.evaluate.identify_operation", forbidden)
     event = {"tool_name": tool, "tool_input": arguments, "cwd": str(tmp_path)}
     decision = evaluate_operation(event, "codex", protected(runtime.policy), state_dir=runtime.state_dir,
                                   allow_adr_trust=False, artifact_scope="direct_files")

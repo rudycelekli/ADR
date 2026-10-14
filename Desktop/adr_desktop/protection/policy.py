@@ -3,11 +3,10 @@
 import os
 import platform
 import unicodedata
-from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from .detection.contracts import Operation
-from .detection.operation import (
+from ..detection.contracts import Operation
+from ..detection.operation import (
     DIRECT_TOOLS,
     PATH_KEYS,
     SAFE_TOOLS,
@@ -17,30 +16,7 @@ from .detection.operation import (
     printable,
     resolve_path,
 )
-
-DENIAL_REASONS = {
-    "protected_path": "ADR blocked access to a protected file or configuration.",
-    "execution_policy": "ADR's strict execution policy blocks this command or unrecognized tool.",
-    "approval_denied": "This operation was denied in ADR's approval dialog.",
-    "approval_expired": "ADR's approval request expired. Retry the operation if it is still needed.",
-    "approval_queue_full": "ADR's approval queue is full. Finish pending approvals, then retry.",
-    "app_unavailable": "ADR's approval dialog is unavailable. Open the ADR menu-bar app and retry.",
-    "invalid_request": "ADR could not validate this tool request; no approval was granted.",
-    "policy_unavailable": "ADR could not load its local protection policy. Open ADR to check its status.",
-    "safety_timeout": "ADR's safety check timed out; no approval was granted.",
-    "vault_execution_required": (
-        "Use adr_run_command for saved $VARIABLE credentials. "
-        "It is built into the ADR plugin; no separate vault setup is needed. "
-        "Local programs receive the values and the model receives filtered output."
-    ),
-    "credential_check_unavailable": (
-        "ADR could not check this tool result against saved credentials. "
-        "The result was withheld. Open Credential vault in ADR to check storage."
-    ),
-    "known_malicious_artifact": (
-        "ADR blocked a known malicious artifact. Review Malicious artifacts in ADR."
-    ),
-}
+from .contracts import DENIAL_REASONS, Decision
 
 
 def _comparison(path: Path) -> str:
@@ -82,62 +58,9 @@ def validate_rule(path: str, action: str, kind: str, label: str) -> dict:
     }
 
 
-@dataclass
-class Decision:
-    decision: str = "pass"
-    reason: str = "No protected path matched"
-    paths: list[str] = field(default_factory=list)
-    rule_id: str | None = None
-    tool: str = ""
-    session_id: str = ""
-    credential_kinds: list[str] = field(default_factory=list)
-    phase: str = "pre"
-    reason_code: str = "no_match"
-    approval_requested: bool = False
-    artifact: dict | None = None
-
-    def as_dict(self):
-        result = asdict(self)
-        # Closed reason codes are for the native bridge. The optional approval
-        # marker distinguishes owner-approved operations from routine passes.
-        result.pop("reason_code")
-        result["approval_requested"] = self.approval_requested or self.decision == "ask"
-        if not result["approval_requested"]:
-            result.pop("approval_requested")
-        if result["artifact"] is None:
-            result.pop("artifact")
-        return result
-
-
-def event_fields(event: dict, harness: str) -> tuple[str, dict, str, str]:
-    if harness in ("claude", "codex", "opencode"):
-        tool = event.get("tool_name")
-        arguments = event.get("tool_input")
-        session = event.get("session_id", "")
-    else:
-        tool = event.get("toolName")
-        arguments = event.get("toolArgs")
-        session = event.get("sessionId", "")
-        if isinstance(arguments, str):
-            from .storage.files import strict_json
-
-            arguments = strict_json(arguments, max_bytes=256 * 1024)
-    if not isinstance(tool, str) or not tool or not isinstance(arguments, dict):
-        raise ValueError("The hook input is missing its tool name or arguments")
-    cwd = event.get("cwd") or str(Path.cwd())
-    if not isinstance(cwd, str) or not Path(cwd).expanduser().is_absolute():
-        raise ValueError("The hook working directory must be absolute")
-    return tool[:200], arguments, cwd, str(session)[:512]
-
-
-def event_operation(event: dict, harness: str) -> Operation:
-    tool, arguments, cwd, _ = event_fields(event, harness)
-    return Operation(harness, tool, arguments, cwd, event.get("mcp_server"))
-
-
-def evaluate(event: dict, harness: str, snapshot: dict) -> Decision:
-    tool, arguments, cwd, session = event_fields(event, harness)
-    result = Decision(tool=tool, session_id=session)
+def evaluate(operation: Operation, snapshot: dict) -> Decision:
+    harness, tool, arguments, cwd = operation.harness, operation.tool, operation.arguments, operation.cwd
+    result = Decision(tool=tool, session_id=operation.session_id)
     rules = list(snapshot.get("rules", [])) if snapshot.get("enabled", True) else []
     # Control files remain protected even when user file rules are paused.
     rules += [
@@ -244,34 +167,3 @@ def evaluate(event: dict, harness: str, snapshot: dict) -> Decision:
                 else "Strict execution review is enabled. Review this command or unrecognized tool."
             )
     return result
-
-
-def hook_output(decision: Decision, harness: str) -> dict:
-    if decision.decision == "pass":
-        # Do not turn an ordinary tool into "allow": that could bypass the
-        # harness's own permission checks.
-        return {}
-    if decision.phase == "post":
-        if harness == "claude":
-            return {
-                "hookSpecificOutput": {
-                    "hookEventName": "PostToolUse",
-                    "updatedToolOutput": decision.reason,
-                }
-            }
-        if harness == "codex":
-            return {"decision": "block", "reason": decision.reason}
-        if harness == "opencode":
-            return {"blocked": True, "message": decision.reason}
-        return {}  # Copilot does not support withholding post-tool output.
-    output = {
-        # Unsupported "ask" can fail open in these harnesses. A native ADR
-        # approval must resolve it to pass/deny before output is emitted.
-        "permissionDecision": "deny"
-        if decision.decision == "ask" and harness != "claude"
-        else decision.decision,
-        "permissionDecisionReason": decision.reason,
-    }
-    if harness in ("claude", "codex"):
-        return {"hookSpecificOutput": {"hookEventName": "PreToolUse", **output}}
-    return output

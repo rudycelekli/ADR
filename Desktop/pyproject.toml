@@ -115,6 +115,15 @@ source_modules = ["adr_desktop.detection.review"]
 forbidden_modules = ["adr_desktop.storage.database", "adr_desktop.storage.ids"]
 
 [[tool.importlinter.contracts]]
+name = "Protection imports nothing but detection"
+type = "forbidden"
+source_modules = ["adr_desktop.protection"]
+forbidden_modules = ["adr_desktop.*", "adr_sensor", "adr_discovery"]
+ignore_imports = ["adr_desktop.protection.** -> adr_desktop.detection.**"]
+# What detection itself imports is detection's own contract.
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
 name = "Storage imports nothing else from Desktop"
 type = "forbidden"
 source_modules = ["adr_desktop.storage"]

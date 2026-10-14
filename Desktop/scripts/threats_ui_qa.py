@@ -22,7 +22,7 @@ from qa_support import browser_evidence, isolated_agent_profile
 
 from adr_desktop.api import create_app
 from adr_desktop.config import utcnow
-from adr_desktop.protection import evaluate_operation
+from adr_desktop.evaluate import evaluate_operation
 from adr_desktop.runtime import Runtime
 from adr_desktop.storage.files import prepare_state_dir
 

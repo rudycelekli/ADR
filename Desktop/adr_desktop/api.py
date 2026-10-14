@@ -23,10 +23,10 @@ from .credential_activity import RUN_ID, recent_runs, record_session
 from .detection.inline.credentials import KINDS, detect_credentials
 from .detection.inline.feed.api_v1 import MAX_FEED_BYTES
 from .detection.review.runners import ReviewError
+from .evaluate import evaluate_operation
 from .integrations.agents import HARNESS_LABELS
+from .integrations.events import event_fields
 from .native import NativeTimedOut, NativeUnavailable
-from .policy import event_fields
-from .protection import evaluate_operation
 from .security_reviews import receive_claude_usage
 from .storage.files import MAX_JSON_BYTES, canonical
 from .threat_protection import ThreatStateConflict

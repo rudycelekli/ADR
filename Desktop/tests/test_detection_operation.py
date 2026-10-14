@@ -6,7 +6,7 @@ import pytest
 
 from adr_desktop.detection.contracts import Operation
 from adr_desktop.detection.operation import SHELL_TOOLS, literal_shell_files
-from adr_desktop.policy import event_operation
+from adr_desktop.integrations.events import event_operation
 
 
 @pytest.mark.parametrize(

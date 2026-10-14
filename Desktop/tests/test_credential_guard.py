@@ -11,7 +11,7 @@ from adr_desktop.detection.inline.credentials import detect_credentials
 from adr_desktop.guard import install_guard
 from adr_desktop.hooks import install, installed, run_hook, uninstall
 from adr_desktop.integrations.agents import configuration_path
-from adr_desktop.policy import DENIAL_REASONS
+from adr_desktop.protection.contracts import DENIAL_REASONS
 
 SYNTHETIC = {
     "GitHub token": "ghp_" + "a" * 36,

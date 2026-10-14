@@ -9,8 +9,8 @@ import pytest
 from conftest import grant_token
 
 from adr_desktop.detection.inline.feed.api_v1 import BUNDLED_FEED_ID, compile_generation
-from adr_desktop.policy import Decision
-from adr_desktop.protection import evaluate_operation
+from adr_desktop.evaluate import evaluate_operation
+from adr_desktop.protection.contracts import Decision
 from adr_desktop.storage.files import canonical, read_private_json
 from adr_desktop.threat_protection import ThreatStateConflict, initialize_threats
 

@@ -9,14 +9,20 @@ from unittest.mock import patch
 import pytest
 from conftest import grant_token
 
-from adr_desktop.policy import evaluate, hook_output
-from adr_desktop.presets import STARTER_ID, starter_catalog
+from adr_desktop.integrations.events import event_operation, hook_output
+from adr_desktop.protection.policy import evaluate as evaluate_rules
+from adr_desktop.protection.presets import STARTER_ID, starter_catalog
 from adr_desktop.storage.files import atomic_json
+
+
+def evaluate(event, harness, snapshot):
+    """Decode the agent event as Desktop does, then apply the file rules."""
+    return evaluate_rules(event_operation(event, harness), snapshot)
 
 
 @pytest.fixture
 def mac_runtime(runtime, monkeypatch):
-    monkeypatch.setattr("adr_desktop.presets.platform.system", lambda: "Darwin")
+    monkeypatch.setattr("adr_desktop.protection.presets.platform.system", lambda: "Darwin")
     monkeypatch.setattr("adr_desktop.runtime.installed", lambda harness, **kwargs: harness == "claude")
     return runtime
 
@@ -33,7 +39,7 @@ def tool_event(path, harness="claude"):
 
 @pytest.mark.parametrize("system,count", [("Darwin", 13), ("Linux", 12), ("Windows", 0)])
 def test_catalog_is_platform_specific_and_uses_the_current_home(runtime, monkeypatch, system, count):
-    monkeypatch.setattr("adr_desktop.presets.platform.system", lambda: system)
+    monkeypatch.setattr("adr_desktop.protection.presets.platform.system", lambda: system)
     catalog = starter_catalog()
     assert len(catalog) == count
     assert all(Path(item["path"]).is_relative_to(Path.home()) for item in catalog)

@@ -9,9 +9,9 @@ from pathlib import Path
 from .config import utcnow
 from .detection.inline.credentials import detect_credentials, detect_prompt_credentials, find_credentials
 from .detection.operation import resolve_path
+from .evaluate import evaluate_operation
 from .local_client import SAFE_ERRORS
 from .native import NativeTimedOut, NativeUnavailable
-from .protection import evaluate_operation
 from .storage.files import atomic_json, canonical
 from .storage.ids import new_id
 
