@@ -51,6 +51,10 @@ def printable(value: str) -> str:
     )
 
 
+def display(value, maximum=8192):
+    return printable(str(value))[:maximum]
+
+
 def resolve_path(value: str, cwd: str) -> Path:
     if not isinstance(value, str) or not value or len(value) > 8192 or "\x00" in value:
         raise ValueError("Invalid file path")
