@@ -22,7 +22,7 @@ from .config import CAPTURE_INTERVAL_SECONDS, command_prefix, utcnow
 from .credential_activity import RUN_ID, recent_runs
 from .detection.inline.credentials import KINDS, detect_credentials
 from .detection.inline.feed.api_v1 import MAX_FEED_BYTES
-from .detection.review.runners import ReviewError
+from .detection.review.contracts import ReviewError
 from .evaluate import evaluate_operation
 from .integrations.agents import HARNESS_LABELS
 from .integrations.events import event_fields

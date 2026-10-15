@@ -10,8 +10,8 @@ from datetime import datetime, timezone
 
 from ...storage.files import canonical
 from ..ports import DeviceIdle, SessionSource
+from .contracts import ERRORS, ReviewError
 from .quota import admission, combine_claude, number
-from .runners import ERRORS, ReviewError
 
 VERSION = "session-review-v1"
 SCHEMA = """

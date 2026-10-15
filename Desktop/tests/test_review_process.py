@@ -8,11 +8,11 @@ from pathlib import Path
 import pytest
 
 from adr_desktop.config import command_prefix
+from adr_desktop.detection.review.contracts import ReviewError
 from adr_desktop.detection.review.coordinator import REPORT_SCHEMA
 from adr_desktop.detection.review.runners import (
     JsonProcess,
     LocalReviewDriver,
-    ReviewError,
     child_environment,
     usage_tokens,
 )
