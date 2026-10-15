@@ -168,6 +168,23 @@ source_modules = ["adr_desktop.detection.review"]
 forbidden_modules = ["adr_desktop.storage.database", "adr_desktop.storage.ids"]
 
 [[tool.importlinter.contracts]]
+name = "The feed engine imports nothing from Desktop outside itself, Sensor, Discovery or the server"
+type = "forbidden"
+source_modules = ["adr_desktop.detection.inline.feed"]
+# The engine stands alone on the standard library. A wildcard skips the package that contains the
+# feed, so these three cover every other Desktop module.
+forbidden_modules = [
+    "adr_desktop.*",
+    "adr_desktop.detection.*",
+    "adr_desktop.detection.inline.*",
+    "adr_sensor",
+    "adr_discovery",
+    "fastapi",
+    "uvicorn",
+    "starlette",
+]
+
+[[tool.importlinter.contracts]]
 name = "Protection imports no storage, Sensor or Discovery: with the layers, nothing but detection"
 type = "forbidden"
 source_modules = ["adr_desktop.protection"]
