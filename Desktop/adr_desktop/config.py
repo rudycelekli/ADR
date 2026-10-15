@@ -5,8 +5,9 @@ import os
 import platform
 import secrets
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
+
+from .storage.ids import utcnow as utcnow  # Desktop's flat modules import it from here.
 
 MAX_STATE_BYTES = 1024 * 1024 * 1024
 CAPTURE_INTERVAL_SECONDS = (300, 900, 1800, 3600)
@@ -19,10 +20,6 @@ DEFAULT_SETTINGS = {
     "inventory_enabled": False,
     "onboarding_complete": False,
 }
-
-
-def utcnow() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
 
 
 def token() -> str:

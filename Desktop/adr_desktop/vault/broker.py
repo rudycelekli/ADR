@@ -8,8 +8,8 @@ import time
 from urllib.parse import urlsplit
 
 from ..storage.files import canonical
-from ..storage.ids import new_id
-from .contracts import SAFE_ERRORS, NativeUnavailable, utcnow
+from ..storage.ids import new_id, utcnow
+from .contracts import SAFE_ERRORS, NativeUnavailable
 from .ports import Grants, NativeVault
 
 PATH_RE = re.compile(r"/[A-Za-z0-9/_@.:\-~]*")

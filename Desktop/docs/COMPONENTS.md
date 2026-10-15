@@ -29,7 +29,7 @@ The repository's top-level `Detection/` folder is the paper's benchmark and dete
 | Code | May import from Desktop |
 | --- | --- |
 | `storage` | nothing |
-| `detection` | storage; its review part only storage's file helpers; its feed engine nothing |
+| `detection` | storage; its review part only storage's file helpers and IDs; its feed engine nothing |
 | `protection` | detection |
 | `vault` | detection and storage |
 | `integrations` | the four subpackages above, no flat module |

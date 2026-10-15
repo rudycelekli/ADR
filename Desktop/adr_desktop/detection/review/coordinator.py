@@ -6,9 +6,9 @@ import math
 import threading
 import time
 import uuid
-from datetime import datetime, timezone
 
 from ...storage.files import canonical
+from ...storage.ids import utcnow
 from ..ports import DeviceIdle, SessionSource
 from .contracts import ERRORS, ReviewError
 from .quota import admission, combine_claude, number
@@ -89,10 +89,6 @@ a practical next step. Do not repeat any credential values. Do not invent incide
 No findings means no supported finding in the supplied evidence, not a security guarantee.
 Coverage describes any omitted messages. Never claim a whole-session review if partial.
 """
-
-
-def utcnow():
-    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
 
 
 class ReviewInputError(ValueError):

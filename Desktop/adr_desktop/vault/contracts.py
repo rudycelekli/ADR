@@ -1,7 +1,5 @@
 """Errors and codes that cross the boundary between Desktop and the vault."""
 
-from datetime import datetime, timezone
-
 
 class NativeUnavailable(RuntimeError):
     pass
@@ -64,8 +62,3 @@ SAFE_ERRORS = {
     ),
     "vault_migration_invalidated": "This entry was removed while the credential move was pending.",
 }
-
-
-def utcnow() -> str:
-    """Row timestamps in the format Desktop's config writes; the vault does not import config."""
-    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
