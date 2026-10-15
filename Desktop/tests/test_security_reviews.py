@@ -7,8 +7,8 @@ from datetime import datetime, timezone
 import pytest
 from conftest import sample_session
 
+from adr_desktop.detection.review.contracts import ReviewError
 from adr_desktop.detection.review.coordinator import evidence_for, validate_report
-from adr_desktop.detection.review.runners import ReviewError
 from adr_desktop.security_reviews import DEFAULTS, NativeIdle, SecurityReviews
 
 

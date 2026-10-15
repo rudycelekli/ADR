@@ -15,7 +15,7 @@ from .detection.inline.feed.api_v1 import (
     validate_generation,
 )
 from .detection.inline.installed import MAX_SCAN_PROJECTS, empty_scan, scan_installed
-from .detection.operation import printable
+from .detection.operation import display
 from .integrations import agents
 from .storage.files import canonical
 from .threat_feed import load_bundled_feed
@@ -56,10 +56,6 @@ def initialize_threats(previous):
     return {
         "enabled": enabled, "generation": generation, "imported_at": imported_at,
     }, None
-
-
-def _display(value, maximum=8192):
-    return printable(str(value))[:maximum]
 
 
 class ThreatProtection:
@@ -224,7 +220,7 @@ class ThreatProtection:
             """INSERT INTO artifact_blocks(
                timestamp,harness,session_id,tool,indicator_id,source_id,kind,generation,target_display,source
                ) VALUES (?,?,?,?,?,?,?,?,?,?)""",
-            (utcnow(), _display(harness, 40), _display(session, 512), _display(tool, 200),
+            (utcnow(), display(harness, 40), display(session, 512), display(tool, 200),
              record["indicator_id"], record["source_id"], record["kind"], compiled.digest,
              record["target_display"], source),
         )

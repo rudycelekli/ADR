@@ -9,7 +9,7 @@ from collections import Counter
 from pathlib import Path
 
 from ...storage.files import canonical
-from ..operation import printable
+from ..operation import display
 from ..ports import AgentConfig
 from .artifacts import (
     IdentityBudget,
@@ -34,10 +34,6 @@ def empty_scan():
     }
 
 
-def _display(value, maximum=8192):
-    return printable(str(value))[:maximum]
-
-
 def scan_installed(generation, inventory, session_projects, agents: AgentConfig, *, checked_at):
     """Inspect known local roots and inventory candidates, without starting them.
 
@@ -58,7 +54,7 @@ def scan_installed(generation, inventory, session_projects, agents: AgentConfig,
     def consume(evidence, *, label=None, inventory_asset_id=None):
         issues.update(evidence.unresolved)
         for candidate in evidence.candidates:
-            display_label = _display(label or candidate.label, 200)
+            display_label = display(label or candidate.label, 200)
             checked.add((candidate.location, display_label))
             for match in compiled.match(candidate.subject):
                 key = canonical([match["indicator_id"], candidate.location, display_label])
@@ -74,7 +70,7 @@ def scan_installed(generation, inventory, session_projects, agents: AgentConfig,
                         "indicator_id", "source_id", "kind", "target_display",
                         "summary", "references",
                     )},
-                    "location": _display(candidate.location), "label": display_label,
+                    "location": display(candidate.location), "label": display_label,
                     "inventory_asset_id": next(iter(links)) if len(links) == 1 else None,
                 }
 

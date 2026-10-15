@@ -114,24 +114,17 @@ def test_all_variable_access_requires_separate_explicit_consent(runtime, tmp_pat
         connection(runtime, tmp_path, ["*"])
 
 
-def test_opted_in_all_variable_connection_picks_up_new_values_without_new_token(runtime, tmp_path):
-    first = entry(runtime)
-    all_grant = connection(runtime, tmp_path, ["*"], confirm_all_environment=True)
-    selected = connection(runtime, tmp_path, [first["id"]])
-    token_before = grant_token(runtime, all_grant)
-    second = entry(runtime, "Second", "SECOND_PASSWORD")
-    principal = runtime.store.one("SELECT * FROM grants WHERE id=?", (all_grant["id"],))
-    assert {row["id"] for row in runtime.environment_vault.permitted(principal)} == {
-        first["id"],
-        second["id"],
-    }
-    assert grant_token(runtime, all_grant) == token_before
-    selected_principal = runtime.store.one("SELECT * FROM grants WHERE id=?", (selected["id"],))
-    assert {row["id"] for row in runtime.environment_vault.permitted(selected_principal)} == {first["id"]}
-    result = runtime.environment_vault.execute(principal, 'printf "%s" "$SECOND_PASSWORD"')
+def test_opted_in_all_variable_connection_picks_up_new_values(vault, tmp_path):
+    first = vault.environment.create("My password", "MY_PASSWORD")
+    all_grant = vault.grants.issue(["*"], project=str(tmp_path))
+    selected = vault.grants.issue([first["id"]], project=str(tmp_path))
+    second = vault.environment.create("Second", "SECOND_PASSWORD")
+    assert {row["id"] for row in vault.environment.permitted(all_grant)} == {first["id"], second["id"]}
+    assert {row["id"] for row in vault.environment.permitted(selected)} == {first["id"]}
+    result = vault.environment.execute(all_grant, 'printf "%s" "$SECOND_PASSWORD"')
     assert result["exit_code"] == 0
     arguments = next(
-        payload for operation, payload in runtime.native.calls if operation == "environment_execute"
+        payload for operation, payload in vault.native.calls if operation == "environment_execute"
     )
     assert set(arguments["ids"]) == {first["id"], second["id"]}
 

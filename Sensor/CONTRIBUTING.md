@@ -39,6 +39,20 @@ Thank you for your interest in contributing to ADR Sensor! This guide will help 
 4. Commit and push
 5. Open a Pull Request
 
+## Adding a Top-Level Module
+
+ADR Desktop's import-linter contracts in [`Desktop/pyproject.toml`](../Desktop/pyproject.toml)
+list every top-level module of `adr_sensor` and `adr_discovery`, so that Desktop can use only
+their `api` modules. A new top-level module or subpackage, such as `adr_sensor/my_module.py`,
+makes `lint-imports` fail until you add it to two contracts there: the layers contract that keeps
+the `api` modules on top, and the list of modules Desktop must not import. A new module inside an
+existing subpackage, such as a parser in `adr_sensor/parsers/`, needs no change. Check from
+`Desktop/`:
+
+```bash
+uv run lint-imports
+```
+
 ## Adding a New Parser
 
 This is the most common contribution. To add support for a new AI agent:

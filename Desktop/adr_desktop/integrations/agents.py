@@ -61,7 +61,7 @@ def read_receipt(state_dir: Path, harness: str):
     return value
 
 
-def _bundle_root(state_dir, harness):
+def bundle_root(state_dir, harness):
     return directory(state_dir, harness) / "catalog" / "plugins" / PLUGIN_NAME
 
 
@@ -87,7 +87,7 @@ def configured(state_dir, harness):
         return bool(
             receipt
             and receipt.get("status") == "configured"
-            and bundle_matches(_bundle_root(state_dir, harness), receipt)
+            and bundle_matches(bundle_root(state_dir, harness), receipt)
         )
     except (OSError, ValueError):
         return False

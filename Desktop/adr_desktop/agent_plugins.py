@@ -15,7 +15,7 @@ from .integrations.agents import (
     HARNESS_LABELS,
     PLUGIN_NAME,
     SCHEMA,
-    _bundle_root,
+    bundle_root,
     check_location,
     directory,
     read_receipt,
@@ -122,7 +122,7 @@ def build_bundle(runtime, harness, grant_id, market, *, unified=False):
     """Generate a profile-bound package; never put a bearer token inside it."""
     import shlex
 
-    root = _bundle_root(runtime.state_dir, harness)
+    root = bundle_root(runtime.state_dir, harness)
     for parent in (root, *root.parents):
         if parent == runtime.state_dir:
             break
@@ -392,15 +392,13 @@ def disconnect_offline(state_dir, harness, *, driver=None):
     from types import SimpleNamespace
 
     from .store import Store
+    from .vault import broker
 
     store = Store(state_dir)
 
     def revoke(identifier):
         store.execute("UPDATE grants SET revoked=1 WHERE id=?", (identifier,))
-        store.execute(
-            "UPDATE broker_requests SET state='revoked',result=NULL WHERE grant_id=?",
-            (identifier,),
-        )
+        broker.revoke_requests(store, identifier)
 
     owner = SimpleNamespace(
         state_dir=state_dir,

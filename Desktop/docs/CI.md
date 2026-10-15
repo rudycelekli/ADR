@@ -39,10 +39,10 @@ An outdated lockfile fails rather than being rewritten or silently accepted.
 GitHub Actions are pinned to commit SHAs, checkout does not persist GitHub
 credentials, and the workflow has read-only repository permissions.
 
-Sensor (which contains Discovery) and Protection are editable local dependencies in Desktop's uv
+Sensor (which contains Discovery) is an editable local dependency in Desktop's uv
 environment. Tests and PyInstaller therefore see the source in this checkout,
-not a cached wheel from an earlier local development session. Their standalone
-CI jobs still use their own package definitions and lockfiles.
+not a cached wheel from an earlier local development session. Its standalone
+CI job still uses its own package definition and lockfile.
 The build supplies explicit source roots to PyInstaller and rejects a bundle
 missing any Sensor parser or required runtime module before creating the app.
 

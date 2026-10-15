@@ -382,8 +382,8 @@ Deleting an ADR credential does **not** revoke the upstream provider's token.
 
 | Subpackage | Holds | May import from Desktop |
 | --- | --- | --- |
-| [storage](adr_desktop/storage/) | Database connection, transactions, schema registration, stable IDs, private profile files | Nothing |
-| [detection](adr_desktop/detection/) | Operation parsing, credential and prompt patterns, the artifact feed engine, artifact identity and installed-item checks; its review part runs Security reviews | Storage (its review part: only the file helpers) |
+| [storage](adr_desktop/storage/) | Database connection, transactions, schema registration, stable IDs and timestamps, private profile files | Nothing |
+| [detection](adr_desktop/detection/) | Operation parsing, credential and prompt patterns, the artifact feed engine, artifact identity and installed-item checks; its review part runs Security reviews | Storage (its review part: only the file helpers and clock) |
 | [protection](adr_desktop/protection/) | File rules, `Decision` and reason codes, starter presets | Detection |
 | [vault](adr_desktop/vault/) | Saved-variable names and aliases, credential-backed runs, the API broker, run audit | Detection and storage |
 | [integrations](adr_desktop/integrations/) | Where each agent keeps its config and ADR's plugin; hook event decode and output encode | The four above |

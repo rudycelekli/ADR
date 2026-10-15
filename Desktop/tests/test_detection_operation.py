@@ -22,6 +22,7 @@ def test_an_agent_event_becomes_the_operation_detection_reads(tmp_path, harness,
     operation = event_operation({**event, "cwd": str(tmp_path)}, harness)
     assert operation == Operation(
         harness=harness, tool="Read", arguments={"file_path": "notes.md"}, cwd=str(tmp_path),
+        full_tool="Read",
     )
 
 

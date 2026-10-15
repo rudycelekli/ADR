@@ -3,7 +3,13 @@ import time
 import pytest
 from conftest import add_credential
 
-from adr_desktop.vault.broker import path_allowed, validate_origin, validate_path, validate_profile
+from adr_desktop.vault.broker import (
+    path_allowed,
+    revoke_requests,
+    validate_origin,
+    validate_path,
+    validate_profile,
+)
 
 
 @pytest.mark.parametrize(
@@ -111,7 +117,7 @@ def test_requests_of_a_revoked_grant_can_no_longer_be_approved(vault):
     credential = add_credential(vault)
     grant = connection(vault, credential)
     pending = vault.broker.enqueue(grant, credential["id"], "/user")
-    vault.broker.revoke_requests(grant["id"])
+    revoke_requests(vault.store, grant["id"])
     assert vault.broker.result(grant, pending["request_id"])["state"] == "revoked"
     with pytest.raises(ValueError):
         vault.broker.approve(pending["request_id"], True)

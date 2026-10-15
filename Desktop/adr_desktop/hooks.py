@@ -16,7 +16,7 @@ from .detection.operation import DIRECT_TOOLS, SHELL_TOOLS
 from .evaluate import evaluate_operation
 from .guard import _atomic_bytes, install_guard, publish_target
 from .integrations.agents import (
-    _bundle_root,
+    bundle_root,
     configuration_path,
     configured,
     opencode_plugin_installed,
@@ -268,7 +268,7 @@ def installed(harness: str, home: Path | None = None, *, phase="pre", state_dir:
     if state_dir is not None and harness != "opencode":
         if configured(state_dir, harness):
             if phase == "prompt":
-                config = read_private_json(_bundle_root(state_dir, harness) / "hooks/hooks.json")
+                config = read_private_json(bundle_root(state_dir, harness) / "hooks/hooks.json")
                 return bool(config.get("hooks", {}).get("UserPromptSubmit"))
             return phase == "pre" or harness != "copilot"
     try:

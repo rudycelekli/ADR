@@ -7,6 +7,7 @@ from conftest import FakePluginDriver, grant_token, sample_session
 
 from adr_desktop import agent_plugins, hooks
 from adr_desktop.integrations import agents
+from adr_desktop.vault import broker
 
 
 @pytest.fixture
@@ -77,6 +78,17 @@ def test_disconnect_revokes_access_before_a_native_uninstall_failure(runtime, dr
     )
     with pytest.raises(RuntimeError):
         agent_plugins.disconnect(runtime, "codex", driver=driver)
+    assert runtime.store.one("SELECT revoked FROM grants")["revoked"] == 1
+    assert not agents.configured(runtime.state_dir, "codex")
+
+
+def test_offline_disconnect_has_the_vault_revoke_the_grants_requests(runtime, driver, monkeypatch):
+    agent_plugins.connect(runtime, "codex", allow_context=True, driver=driver)
+    grant_id = agents.read_receipt(runtime.state_dir, "codex")["grant_id"]
+    revoked = []
+    monkeypatch.setattr(broker, "revoke_requests", lambda _store, identifier: revoked.append(identifier))
+    agent_plugins.disconnect_offline(runtime.state_dir, "codex", driver=driver)
+    assert revoked == [grant_id]
     assert runtime.store.one("SELECT revoked FROM grants")["revoked"] == 1
     assert not agents.configured(runtime.state_dir, "codex")
 

@@ -5,8 +5,8 @@ import uuid
 
 import pytest
 
+from adr_desktop.detection.review.contracts import ReviewError
 from adr_desktop.detection.review.coordinator import ReviewCoordinator
-from adr_desktop.detection.review.runners import ReviewError
 from adr_desktop.storage.database import Database
 
 SETTINGS = {
