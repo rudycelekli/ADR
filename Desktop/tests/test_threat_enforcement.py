@@ -162,6 +162,23 @@ def test_mcp_endpoint_requires_current_exact_definition(runtime, tmp_path):
     assert evaluate_operation(event, "claude", snapshot, state_dir=runtime.state_dir).decision == "pass"
 
 
+@pytest.mark.parametrize(("harness", "length"), [("claude", 194), ("claude", 250), ("opencode", 250)])
+def test_mcp_server_with_long_alias_is_still_blocked(runtime, tmp_path, harness, length):
+    # The alias puts the tool name past the 200 characters Desktop keeps for display.
+    alias = "a" * length
+    url = "https://fixture.example.invalid/mcp"
+    if harness == "claude":
+        (tmp_path / ".mcp.json").write_text(json.dumps({"mcpServers": {alias: {"url": url}}}))
+        tool = f"mcp__{alias}__lookup"
+    else:
+        (tmp_path / "opencode.json").write_text(json.dumps({"mcp": {alias: {"type": "remote", "url": url}}}))
+        tool = f"{alias}_lookup"
+    snapshot = protected(runtime.policy, generation(("mcp_endpoint", {"url": url})))
+    event = {"tool_name": tool, "tool_input": {}, "cwd": str(tmp_path)}
+    decision = evaluate_operation(event, harness, snapshot, state_dir=runtime.state_dir)
+    assert (decision.decision, decision.reason_code) == ("deny", "known_malicious_artifact")
+
+
 def test_offline_real_guardian_stops_inert_installer_before_marker(runtime, tmp_path):
     marker = tmp_path / "marker"
     program = tmp_path / "npm"

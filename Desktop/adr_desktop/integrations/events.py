@@ -29,7 +29,8 @@ def event_fields(event: dict, harness: str) -> tuple[str, dict, str, str]:
 
 def event_operation(event: dict, harness: str) -> Operation:
     tool, arguments, cwd, session = event_fields(event, harness)
-    return Operation(harness, tool, arguments, cwd, event.get("mcp_server"), session)
+    full_tool = event["tool_name"] if harness in ("claude", "codex", "opencode") else event["toolName"]
+    return Operation(harness, tool, arguments, cwd, event.get("mcp_server"), session, full_tool)
 
 
 def hook_output(decision: Decision, harness: str) -> dict:

@@ -853,7 +853,7 @@ def inspect_mcp_definition(definition, config_path, cwd, *, budget=None, environ
 
 
 def _mcp_call(operation, agents, budget) -> Evidence:
-    name, harness, cwd = operation.tool, operation.harness, operation.cwd
+    name, harness, cwd = operation.full_tool or operation.tool, operation.harness, operation.cwd
     provenance = operation.mcp_server
     if not isinstance(name, str):
         return Evidence()
