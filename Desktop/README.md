@@ -375,6 +375,24 @@ OS account or a copy of the entire profile. Old Keychain originals are retained
 after migration and can be managed separately in Keychain Access.
 Deleting an ADR credential does **not** revoke the upstream provider's token.
 
+## Code layout
+
+`adr-desktop` is one installable package. Most of `adr_desktop/` is still flat modules
+(runtime, API, CLI, hooks, store and the rest). Five subpackages have enforced import rules:
+
+| Subpackage | Holds | May import from Desktop |
+| --- | --- | --- |
+| [storage](adr_desktop/storage/) | Database connection, transactions, schema registration, stable IDs, private profile files | Nothing |
+| [detection](adr_desktop/detection/) | Operation parsing, credential and prompt patterns, the artifact feed engine, artifact identity and installed-item checks; its review part runs Security reviews | Storage (its review part: only the file helpers) |
+| [protection](adr_desktop/protection/) | File rules, `Decision` and reason codes, starter presets | Detection |
+| [vault](adr_desktop/vault/) | Saved-variable names and aliases, credential-backed runs, the API broker, run audit | Detection and storage |
+| [integrations](adr_desktop/integrations/) | Where each agent keeps its config and ADR's plugin; hook event decode and output encode | The four above |
+
+Desktop depends on exactly one version of [`adr-sensor`](../Sensor/), which holds `adr_sensor`
+and `adr_discovery`, and uses them only through `adr_sensor.api` and `adr_discovery.api`.
+`uv run lint-imports` enforces these rules and the hook's import limits, with no exceptions.
+See [components](docs/COMPONENTS.md) for who owns what.
+
 ## Development checks
 
 ```sh
@@ -400,8 +418,7 @@ layouts. Use a separate build output to keep a running app unchanged.
 The artifact feed engine lives in [detection's inline part](adr_desktop/detection/inline/feed/);
 its v1 contract tests and fixed fixtures run with Desktop's tests. Desktop retains
 its existing enforcement, native vault, storage, and authorization boundaries.
-Desktop uses [Sensor](../Sensor/) and the Discovery package inside it only through
-`adr_sensor.api` and `adr_discovery.api`; `lint-imports` enforces this.
+`lint-imports` checks the import rules in [code layout](#code-layout).
 For interactive MCP/browser testing and repeatable improvement passes, see
 [the community UI lab](docs/COMMUNITY_QA.md).
 

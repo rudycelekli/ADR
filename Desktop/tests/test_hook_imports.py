@@ -19,6 +19,7 @@ FORBIDDEN = (
     "adr_desktop.runtime",
     "adr_desktop.api",
     "adr_desktop.store",
+    "adr_desktop.storage.database",
     "adr_desktop.detection.review",
     "adr_desktop.security_reviews",
     "adr_sensor",
