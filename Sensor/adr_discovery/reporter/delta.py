@@ -1,6 +1,8 @@
 """What the delta says.
 
     appeared · disappeared · version_changed · config_changed · reinstalled
+  + content_changed  same asset, different bytes: a version string is
+                     whatever the publisher wrote, a hash is not
   + risk_delta       pinned -> floating is a silent regression otherwise
   + coverage_delta   a surface that became unreadable is a change too
 
@@ -78,6 +80,9 @@ def diff(before: Snapshot, after: Snapshot, allow_cross_endpoint: bool = False) 
             )
         if _config_of(old) != _config_of(new):
             changes.append(Change("config_changed", asset_id, new.name))
+        moved = _content_moved(old, new)
+        if moved:
+            changes.append(Change("content_changed", asset_id, new.name, moved))
         # An asset set that did not move can still carry a regression.
         if old.risk.pinned is True and new.risk.pinned is False:
             changes.append(
@@ -102,6 +107,20 @@ def diff(before: Snapshot, after: Snapshot, allow_cross_endpoint: bool = False) 
 
 def _config_of(asset) -> tuple:
     return (asset.install_path, asset.risk.transport, tuple(sorted(asset.risk.env_names)))
+
+
+def _content_moved(old, new) -> str:
+    """Which content hashes differ, as ``field old -> new`` (12-hex prefixes)."""
+    moved = []
+    for field in ("skill_sha256", "content_hash"):
+        before, after = getattr(old, field), getattr(new, field)
+        if before != after:
+            moved.append(f"{field} {_short(before)} -> {_short(after)}")
+    return "; ".join(moved)
+
+
+def _short(digest: str | None) -> str:
+    return digest[:12] if digest else "none"
 
 
 def _coverage_delta(before: Snapshot, after: Snapshot) -> tuple[str, ...]:

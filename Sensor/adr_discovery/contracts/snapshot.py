@@ -11,22 +11,13 @@ from dataclasses import dataclass, field
 
 from .records import Asset, Finding, ReviewItem
 
-SCHEMA_VERSION = "1.1"
+SCHEMA_VERSION = "1.2"
 
 #: Categories discovery deliberately does not collect. Named rather than
 #: omitted, so a reader can tell a clean machine from an unasked question.
 OUT_OF_SCOPE: tuple[str, ...] = (
     "scheduling_mechanisms",
 )
-
-
-class Boundary(str):
-    """Why a walk or a read stopped."""
-
-    DEPTH = "depth"
-    ENTRY_CAP = "entry_cap"
-    BUDGET = "budget_exhausted"
-    TIME = "time_exhausted"
 
 
 @dataclass(frozen=True, slots=True)

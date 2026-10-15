@@ -16,6 +16,7 @@ directory, and a relative segment inside a config can climb out of the tree.
 from __future__ import annotations
 
 import errno
+import hashlib
 import os
 import signal
 import subprocess
@@ -23,7 +24,8 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass
-from typing import Callable, Generic, Iterator, TypeVar
+from stat import S_ISDIR, S_ISREG
+from typing import Callable, Generic, Iterator, Protocol, TypeVar
 
 from ..coverage.ledger import Ledger
 from ..redact import rules as redact
@@ -31,6 +33,9 @@ from .budget import Budget
 from .platform.base import Providers
 
 T = TypeVar("T")
+#: First line of a valid CACHEDIR.TAG (https://bford.info/cachedir/).
+_CACHEDIR_SIGNATURE = b"Signature: 8a477f597d28d172789f06886806bc55"
+_MAX_RETAINED = 5000
 _HELPER_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"
 
 
@@ -77,6 +82,43 @@ class Stat:
 
 
 @dataclass(frozen=True, slots=True)
+class Tree:
+    """What one complete pass over a directory tree covered."""
+
+    files: int
+    bytes: int
+
+
+@dataclass(frozen=True, slots=True)
+class TreeDigest:
+    sha256: str
+    files: int
+    bytes: int
+
+
+class TreeSink(Protocol):
+    """Receives a tree's regular files in folder-hash order."""
+
+    def begin(self, rel: bytes, mode: int) -> None: ...
+
+    def update(self, chunk: bytes) -> None: ...
+
+
+class FolderHash:
+    """The folder hash: per file, ``<rel>\n<x>\n`` then the raw bytes, all
+    into one running sha256. ``x`` is 1 when any execute bit is set."""
+
+    def __init__(self) -> None:
+        self.digest = hashlib.sha256()
+
+    def begin(self, rel: bytes, mode: int) -> None:
+        self.digest.update(rel + (b"\n1\n" if mode & 0o111 else b"\n0\n"))
+
+    def update(self, chunk: bytes) -> None:
+        self.digest.update(chunk)
+
+
+@dataclass(frozen=True, slots=True)
 class Ran:
     argv: tuple[str, ...]
     code: int
@@ -94,11 +136,16 @@ class Gate:
         budget: Budget | None = None,
         providers: Providers | None = None,
         env: dict[str, str] | None = None,
+        resolve_names: bool = False,
     ) -> None:
         self._root = os.path.realpath(root)
         self.ledger = ledger if ledger is not None else Ledger()
         self.budget = budget if budget is not None else Budget()
         self.env = dict(env) if env is not None else {}
+        #: Whether provider hostnames may be looked up through the host's
+        #: resolver. Off by default: a scan sends nothing over the network
+        #: unless the operator asks for it.
+        self.resolve_names = resolve_names
         from .platform.base import NullProviders
 
         self.providers = providers if providers is not None else NullProviders()
@@ -109,6 +156,11 @@ class Gate:
         #: validation and before open(), so a case can swap the target and
         #: prove the descriptor check catches it.
         self.on_validated = None
+        #: Complete listings of directories a walk marked worth keeping, so a
+        #: later stage reading the same surface directory is not charged
+        #: twice. Only validated, untruncated listings are stored, and the
+        #: number kept is bounded.
+        self._retained: dict[str, tuple[Entry, ...]] = {}
 
     # ---------------------------------------------------------------- paths
 
@@ -301,7 +353,10 @@ class Gate:
             )
         )
 
-    def list_dir(self, logical: str, *, reserved_entries: int = 0) -> Result[tuple[Entry, ...]]:
+    def list_dir(self, logical: str, retain: bool = False) -> Result[tuple[Entry, ...]]:
+        kept = self._retained.get(logical)
+        if kept is not None:
+            return Ok(kept)
         validated = self._validate(logical)
         if not validated.ok:
             return validated
@@ -318,7 +373,7 @@ class Gate:
         try:
             with os.scandir(fd) as listing:
                 for e in listing:
-                    if self.budget.entries_remaining <= reserved_entries or not self.budget.take_entries():
+                    if not self.budget.take_entries():
                         exhausted = True
                         break
                     path = os.path.join(logical, e.name) if logical != "/" else "/" + e.name
@@ -350,75 +405,268 @@ class Gate:
 
         if exhausted:
             self.ledger.boundary(
-                logical, "budget_exhausted",
-                f"cap {self.budget.max_entries}; {reserved_entries} entries reserved; directory truncated",
+                logical, "budget_exhausted", f"cap {self.budget.entry_cap}; directory truncated"
             )
         entries.sort(key=lambda entry: entry.path)
+        if retain and not exhausted and len(self._retained) < _MAX_RETAINED:
+            self._retained[logical] = tuple(entries)
         return Ok(tuple(entries))
 
     def walk(
         self,
         logical_root: str,
         max_depth: int | None = None,
-        *,
         descend: Callable[[str], bool] | None = None,
+        seen: set[str] | None = None,
+        retain: Callable[[str], bool] | None = None,
     ) -> Iterator[Entry]:
         """Breadth-first under the shared entry ceiling.
 
+        `descend` is asked before a directory joins the frontier, so a tree
+        the caller does not want is never listed and never charged. The
+        directory's own entry is still yielded: the caller filters results,
+        this decides cost. A skipped tree is recorded as a `scope_excluded`
+        boundary, so coverage can say what the walk left out.
+
+        `seen` holds directories already listed. Pass one set to several
+        walks and a directory reachable from more than one root (`/home` and
+        `/home/alice`, a code root inside a home) is listed, and charged,
+        once; the later walk steps over it and still yields the entry.
+
+        `retain` marks directories whose listing later stages will want
+        again; those listings are kept and re-served without a charge.
+
         Breadth-first on purpose: a budget exhausted late still covered the
         likely places, which is not true of a depth-first walk that spends
-        everything in the first deep subtree it meets.
+        everything in the first deep subtree it meets. Breadth is also taken
+        across the root's children, not only by depth: see the queues below.
         """
         depth_cap = self.budget.max_depth if max_depth is None else max_depth
-        frontier = deque([(logical_root, 0)])
-        seen: set[str] = set()
+        listed = set() if seen is None else seen
+        queued: set[str] = set()
         deepest = 0
         count = 0
         root_listed = False
+        if logical_root in listed:
+            self.ledger.swept(logical_root, 0, 0)
+            return
 
-        while frontier:
-            if self.budget.entries_remaining <= self.budget.reserved_walk_entries:
-                self.ledger.boundary(
-                    logical_root, "budget_exhausted",
-                    f"walk stopped; {len(frontier)} queued locations not checked; "
-                    f"{self.budget.reserved_walk_entries} entries reserved for manifest extraction",
-                )
-                if root_listed:
-                    self.ledger.swept(logical_root, deepest, count)
-                return
-            path, depth = frontier.popleft()
-            if depth > depth_cap:
-                self.ledger.boundary(path, "depth", f"cap {depth_cap}")
-                continue
-            if self.budget.time_exhausted:
-                self.ledger.boundary(path, "time_exhausted", f"cap {self.budget.max_seconds}s")
-                if root_listed:
-                    self.ledger.swept(logical_root, deepest, count)
-                return
-            listing = self.list_dir(path, reserved_entries=self.budget.reserved_walk_entries)
-            if not listing.ok:
-                continue
-            if path == logical_root:
-                root_listed = True
-            deepest = max(deepest, depth)
-            for entry in listing.value:
-                count += 1
-                yield entry
-                if entry.is_symlink:
-                    self.ledger.skip(
-                        entry.path, "symlink_not_followed",
-                        "Broad walk does not follow symlinks; targeted checks may still inspect an allowed target",
-                        operation="walk",
+        # Fair share: one queue per top-level child of the root, served one
+        # directory per turn. A single enormous subtree can then spend only
+        # its own turns, and its siblings keep descending to the depth cap.
+        # Within a queue the order is still breadth-first, and listings are
+        # sorted, so the visit order is the same on every run.
+        queues: list[deque[tuple[str, int]]] = [deque([(logical_root, 0)])]
+
+        while queues:
+            for queue in tuple(queues):
+                if not queue:
+                    continue
+                if self.budget.entries_exhausted:
+                    self.ledger.boundary(
+                        logical_root, "budget_exhausted",
+                        f"walk stopped; {sum(len(q) for q in queues)} queued locations not checked; "
+                        f"cap {self.budget.entry_cap}",
                     )
-                if entry.is_dir and not entry.is_symlink and entry.path not in seen:
-                    if descend is not None and not descend(entry.path):
-                        self.ledger.boundary(entry.path, "scope_excluded", "dependency or cache directory")
+                    if root_listed:
+                        self.ledger.swept(logical_root, deepest, count)
+                    return
+                path, depth = queue.popleft()
+                if depth > depth_cap:
+                    self.ledger.boundary(path, "depth", f"cap {depth_cap}")
+                    continue
+                if self.budget.time_exhausted:
+                    self.ledger.boundary(path, "time_exhausted", f"cap {self.budget.max_seconds}s")
+                    if root_listed:
+                        self.ledger.swept(logical_root, deepest, count)
+                    return
+                listing = self.list_dir(path, retain=retain is not None and retain(path))
+                if not listing.ok:
+                    continue
+                # Marked when listed, not when queued: a directory a capped
+                # walk never reached must stay available to the next walk.
+                listed.add(path)
+                if path == logical_root:
+                    root_listed = True
+                deepest = max(deepest, depth)
+                prune = self._prune_reason(path, listing.value)
+                for entry in listing.value:
+                    count += 1
+                    yield entry
+                    if entry.is_symlink:
+                        self.ledger.skip(
+                            entry.path, "symlink_not_followed",
+                            "Broad walk does not follow symlinks; targeted checks may still inspect an allowed target",
+                            operation="walk",
+                        )
+                    if prune:
                         continue
-                    seen.add(entry.path)
-                    frontier.append((entry.path, depth + 1))
+                    if (
+                        entry.is_dir
+                        and not entry.is_symlink
+                        and entry.path not in listed
+                        and entry.path not in queued
+                    ):
+                        if descend is not None and not descend(entry.path):
+                            self.ledger.boundary(entry.path, "scope_excluded", "dependency or cache directory")
+                            continue
+                        queued.add(entry.path)
+                        if depth == 0:
+                            queues.append(deque([(entry.path, 1)]))
+                        else:
+                            queue.append((entry.path, depth + 1))
+            queues = [q for q in queues if q]
 
         if root_listed:
             self.ledger.swept(logical_root, deepest, count)
+
+    def _prune_reason(self, path: str, entries: tuple[Entry, ...]) -> str | None:
+        """Why this directory's subtrees should not be walked, recorded.
+
+        Both tests use only the listing already paid for, and name no tool:
+        a tagged cache and a directory with a runaway fan-out look the same
+        whoever made them.
+        """
+        for entry in entries:
+            if entry.path.endswith("/CACHEDIR.TAG") and not entry.is_dir:
+                tag = self.read_bytes(entry.path, limit=len(_CACHEDIR_SIGNATURE))
+                if tag.ok and tag.value == _CACHEDIR_SIGNATURE:
+                    self.ledger.boundary(path, "cache_dir", "CACHEDIR.TAG; subtrees not walked")
+                    return "cache_dir"
+                break
+        if len(entries) > self.budget.max_children:
+            self.ledger.boundary(
+                path, "fan_out",
+                f"{len(entries)} children; cap {self.budget.max_children}; subtrees not walked",
+            )
+            return "fan_out"
+        return None
+
+    # ---------------------------------------------------------------- trees
+
+    def hash_tree(self, logical_root: str) -> Result[TreeDigest]:
+        """The folder hash of a directory, or a recorded reason there is none.
+
+        Every regular file under the root, symlinks never followed, sorted by
+        its ``/``-separated relative path byte-wise, folded into one running
+        sha256 as ``<rel>\\n<x>\\n`` then its bytes (``x`` is 1 when any
+        execute bit is set). Equal trees hash equal wherever they sit.
+        """
+        sink = FolderHash()
+        read = self.read_tree(logical_root, sink)
+        if not read.ok:
+            return read
+        return Ok(TreeDigest(sink.digest.hexdigest(), read.value.files, read.value.bytes))
+
+    def read_tree(self, logical_root: str, sink: TreeSink) -> Result[Tree]:
+        """Feed every regular file under a directory to `sink`, in order.
+
+        All or nothing: a tree over a cap, or with any file that cannot be
+        listed or read, is refused and recorded, and whatever `sink` was
+        given must be discarded. A partial hash would name a tree that does
+        not exist. Bytes are charged to the hashing budget, not the entry
+        ceiling, and are claimed for the whole tree before the first read.
+        """
+        validated = self._validate(logical_root)
+        if not validated.ok:
+            return validated
+        resolved = validated.value
+        listed = self._tree_members(logical_root, resolved)
+        if not listed.ok:
+            return listed
+        members = listed.value
+        declared = sum(size for _, _, size in members)
+        if declared > self.budget.max_tree_bytes:
+            return self._tree_refused(
+                logical_root, "tree_too_large", f"{declared} bytes; cap {self.budget.max_tree_bytes}"
+            )
+        if not self.budget.take_hash_bytes(declared):
+            return self._tree_refused(
+                logical_root, "hash_budget_exhausted", f"cap {self.budget.max_hash_bytes} bytes"
+            )
+
+        total = 0
+        for key, rel, _ in members:
+            logical = self.logical_path(os.path.join(resolved, *rel.split("/")))
+            fed = self._feed_file(logical, key, sink)
+            if not fed.ok:
+                return self._tree_refused(logical_root, "unreadable_member", f"{rel}: {fed.reason}")
+            total += fed.value
+            if total > self.budget.max_tree_bytes:
+                return self._tree_refused(
+                    logical_root, "tree_too_large", f"grew past {self.budget.max_tree_bytes} bytes"
+                )
+        return Ok(Tree(len(members), total))
+
+    def _tree_members(self, logical_root: str, resolved: str) -> Result[list[tuple[bytes, str, int]]]:
+        """(sort key, relative path, size) for each regular file, sorted.
+
+        Not charged to the entry ceiling, which the sweep may already have
+        spent: a truncated listing would become a partial hash. The per-tree
+        file cap bounds it instead. Each file is still opened through the
+        validated, descriptor-checked path before a byte is read.
+        """
+        members: list[tuple[bytes, str, int]] = []
+        pending = [""]
+        while pending:
+            rel_dir = pending.pop()
+            try:
+                with os.scandir(os.path.join(resolved, *rel_dir.split("/")) if rel_dir else resolved) as listing:
+                    entries = list(listing)
+            except OSError as exc:
+                return self._tree_refused(
+                    logical_root, "unlistable", f"{rel_dir or '.'}: {exc.strerror or exc}"
+                )
+            for entry in entries:
+                rel = f"{rel_dir}/{entry.name}" if rel_dir else entry.name
+                try:
+                    info = entry.stat(follow_symlinks=False)
+                except OSError:
+                    return self._tree_refused(logical_root, "unlistable", rel)
+                if S_ISDIR(info.st_mode):
+                    pending.append(rel)
+                elif S_ISREG(info.st_mode):
+                    if info.st_size > self.budget.max_tree_file_bytes:
+                        return self._tree_refused(
+                            logical_root, "file_too_large",
+                            f"{rel}: {info.st_size} bytes; cap {self.budget.max_tree_file_bytes}",
+                        )
+                    members.append((os.fsencode(rel), rel, info.st_size))
+                    if len(members) > self.budget.max_tree_files:
+                        return self._tree_refused(
+                            logical_root, "too_many_files", f"cap {self.budget.max_tree_files}"
+                        )
+        members.sort()
+        return Ok(members)
+
+    def _feed_file(self, logical: str, key: bytes, sink: TreeSink) -> Result[int]:
+        validated = self._validate(logical)
+        if not validated.ok:
+            return validated
+        opened = self._open_verified(logical, validated.value)
+        if not opened.ok:
+            return opened
+        fd = opened.value
+        size = 0
+        try:
+            mode = os.fstat(fd).st_mode
+            if not S_ISREG(mode):
+                return Refused("not_regular", logical)
+            sink.begin(key, mode)
+            while chunk := os.read(fd, 1 << 20):
+                size += len(chunk)
+                if size > self.budget.max_tree_file_bytes:
+                    return Refused("file_too_large", logical)
+                sink.update(chunk)
+        except OSError as exc:
+            return Refused("read_failed", exc.strerror or str(exc))
+        finally:
+            os.close(fd)
+        return Ok(size)
+
+    def _tree_refused(self, logical_root: str, reason: str, detail: str) -> Refused:
+        self.ledger.boundary(logical_root, "no_folder_hash", f"{reason}: {detail}")
+        return Refused(reason, detail)
 
     # ------------------------------------------------------------ processes
 
@@ -439,6 +687,12 @@ class Gate:
 
     def exec_journal(self):
         return self.providers.exec_journal(self)
+
+    def resolve(self, hostnames: tuple[str, ...]):
+        if not self.resolve_names:
+            self.ledger.unavailable("resolver", "name resolution not requested (--resolve)")
+            return Refused("unavailable", "name resolution not requested")
+        return self.providers.resolve(self, hostnames)
 
     def package_owner(self, path: str):
         self.calls["package_owner"] += 1

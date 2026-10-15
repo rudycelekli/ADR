@@ -46,10 +46,10 @@ The rewrite exists because the old layout had no boundary a linter could check. 
   spending the budget inside them. Reaching the entry cap stops the walk and
   reports how many queued locations remain, rather than reopening every
   queued directory after the cap.
-- Embedders may reserve entries from the same shared budget for the later
-  manifest-extraction phase with `Budget.reserved_walk_entries`. This is
-  not an additional or unbounded budget. ADR Desktop reserves 3,000 of its
-  15,000-entry limit for this purpose.
+- The generic sweep leaves `Budget.reserved_walk_entries` (10% of the
+  ceiling unless set) of the same shared budget to the stages after it,
+  such as manifest extraction. This is not an additional or unbounded
+  budget. ADR Desktop reserves 3,000 of its 15,000-entry limit.
 - Hook titles name the executable or script and the event, such as
   `audit.py · After tool use`. Command arguments are not used in titles.
   Separate callbacks remain separate even when their readable titles match.
@@ -179,7 +179,6 @@ adr_discovery/
 │
 ├── identifier/           M4 · what it really is
 │   ├── ladder.py           provenance → content → convention, stop at proof
-│   ├── verify.py           compatibility refusal for executable probes
 │   └── openworld.py        score the uncatalogued on properties, never on names
 │
 ├── resolver/             M5 · one thing, one asset
@@ -221,7 +220,14 @@ kind          cli_agent · app · ai_browser · model_runtime · model_weights
               extension · mcp_server · mcp_bundle · skill · command
               plugin · output_style · agent_definition · hook · instructions
               ci_agent · cloud_agent · agent_platform
-identity      catalog id, or a content-derived identity for the uncatalogued
+identity      catalog id, or a content-derived identity for the uncatalogued.
+              Declarations are never identified by name alone: file-shaped
+              kinds (instructions, skill, command, agent_definition,
+              output_style, plugin) by their on-disk path, mcp_server by
+              name plus the declaring config file, hooks and CI agents by
+              path plus their own digest. Two CLAUDE.md files, two skills
+              named `index`, or one server name declared in two configs
+              are separate assets.
               name · vendor · version · install_path · install_root · install_method
 owner         a person, or "system" — never whoever ran the scan
 location      local today; the schema reserves wsl:<distro> · container · remote:<host>
@@ -230,10 +236,52 @@ verification  how identity was established: provenance · content
 confidence    derived from channel count, reported as a band
 liveness      running · installed · declared_only
 last_used     from Sensor session telemetry
+modified      latest mtime of the file behind it (a skill's SKILL.md, a declaration's config file), ISO-8601 UTC
 risk          {pinned, factors[], credential_kinds[], env_names[], …}
+skill_sha256  skills only: folder hash of the skill directory, below (also content_hash, package_id when known)
+allowed_tools skills, commands, agent definitions, output styles: frontmatter allowed-tools (also model;
+              a frontmatter version goes into version, a plugin's comes from its plugin.json)
+provenance    plugins and what they ship: {state, host, marketplace, marketplace_source{kind, repo|url|path},
+              plugin, plugin_version, install_scope, installed_at, enabled}
+plugin_asset_id  the plugin asset a skill, command or agent belongs to
+archive       with --archive-skills: {path, sha256} of the skill's local zip
+hook_event    hooks only: lifecycle event (hook_matcher: tool matcher); the command is never emitted
 ```
 
+Schema 1.2 adds `allowed_tools`, `model`, `provenance`, `plugin_asset_id` and `archive`, and redefines `skill_sha256`: in 1.1 it was the sha256 of `SKILL.md` alone, now it is the folder hash below. Asset IDs are unchanged, so the first delta across the upgrade reports every skill as `content_changed`, and a `skill_sha256` policy indicator written for 1.1 no longer matches. 1.2 also carries the review-queue fields `suspected_catalog_id`, `suspected_name` and `candidate_kind`, and coverage `skipped` records with `errno`, `operations` and `occurrences` on skipped and denied locations.
+
+Schema 1.1 changed identity for declarations (see `identity`), so `asset_id` of those kinds differs from 1.0 and the first delta across the upgrade reports them as disappeared and appeared. Catalogued binaries and processes are unaffected.
+
+`skill_sha256` is the folder hash of the skill's directory, so a payload in `scripts/` changes it as surely as an edit to `SKILL.md`. Walk the directory without following symlinks and keep regular files only; sort their `/`-separated relative paths byte-wise; feed one running sha256, per file, with `<rel>\n<x>\n` (`x` is `1` when any execute bit is set, else `0`) and then the file's bytes; emit lowercase hex. An empty directory hashes to `sha256("")`. A tree over 10,000 files, 20 MiB per file or 100 MiB in total, or with any file that cannot be read, gets no hash and a `no_folder_hash` coverage boundary — never a hash of part of it. The bytes read for hashing come from their own budget (1 GiB per scan), so hashing cannot starve the sweep. Any tool that hashes a skill directory this way gets the same value, so one indicator matches every copy of the skill, wherever it is found.
+
+### Plugin provenance
+
+Discovery reads the plugin registries the agents keep, never the network: Claude Code's `known_marketplaces.json`, `installed_plugins.json`, the `enabledPlugins` and `extraKnownMarketplaces` settings (user, and project and local for the projects an install names) and each marketplace's `marketplace.json`; Codex's `config.toml` and plugin cache; Cursor's plugin cache, marketplace clones and `local/` plugins. Every plugin, and everything found inside one, carries `provenance`:
+
+| `state` | Meaning |
+| --- | --- |
+| `installed` | An install record names the directory (Codex and Cursor, which keep none: a complete copy in their cache) |
+| `available` | It sits in a marketplace clone: offered, not installed from there |
+| `stale` | A cached version that no install record names any more |
+| `unregistered` | A plugin no registry mentions |
+
+`enabled` is `null` when no settings file decides it. Marketplace sources are reduced to a kind and `host/owner/repo`, a URL without userinfo, query or fragment, or a home-relative path. Install records whose directory is missing, and Cursor cache copies left without a manifest, are counted in the `plugin_registries` probe. Cursor keeps enablement in the editor's own state, so its plugins are always `enabled: null`.
+
+### Skill archives
+
+`--archive-skills [DIR]` (default `<output-dir>/skill-archives`) keeps a zip of every hashed skill, so a user who later learns a skill was malicious can hand over exactly that skill. It is opt-in and local: the directory is 0700, every file 0600, and nothing is transmitted. Each archive is `<skill_sha256>.zip`, deterministic (sorted entries, regular files only, no top-level folder, dated 1980-01-01, deflated at a fixed level, Unix mode kept so the execute bit survives) and verified before it is kept: `adr_discovery.archive.zip_content_sha256` recomputes the folder hash from the zip without extracting it. An existing archive is never rewritten. `index.jsonl` records, per archive and source, the home-relative path, provenance, file count and bytes, and when it was first and last seen. `adr_discovery.archive.archive_skill(path, dest)` archives one skill outside a scan.
+
+### Delta
+
+`--diff` reports `appeared`, `disappeared`, `reinstalled`, `version_changed`, `config_changed`, `risk_delta` and `content_changed`. The last is an asset that keeps its ID but whose `skill_sha256` or `content_hash` changed: a skill updated in place, or a payload added beside its `SKILL.md`, under an unchanged version.
+
+### Reporting a malicious skill
+
+The Claude Code skill in `.claude/skills/submit-malicious-skill/` prepares a GitHub issue naming the skill, its folder hash, the reason and a proposed `skill_sha256` indicator for the known-bad artifact feed. The skill's zip from `--archive-skills`, checked with `zip_content_sha256`, is then attached to that issue on GitHub.
+
 `evidence` makes every claim checkable, and `verification` says which rung of the ladder established identity — so a reader can tell a package-owned binary from a filename that looked right. Discovered executables are never run. OS inventory helpers use fixed absolute paths through a separate bounded-output interface; they cannot be selected through the scanner's inherited `PATH`.
+
+A native installer leaves no package record, so a catalog entry may declare `install_layouts`: the directory its updater manages (`~/.local/share/claude/versions/*` for Claude Code). An executable there, a launcher symlink resolved into it, or a process running one is concluded at the provenance rung, with the version read from the path when it has the entry's `version_shape`.
 
 ### Coverage travels with it
 
@@ -256,7 +304,7 @@ The rule is one line: **every asset that exists and is not in the snapshot must 
 
 This runs on employee laptops in a jurisdictionally messy fleet. The constraints below decide whether it can ship at all.
 
-- **No file contents.** Paths, metadata, hashes and allowlisted config keys only. A skill body holds business context and is not inventory data.
+- **No file contents.** Paths, metadata, hashes and allowlisted config keys only. A skill body holds business context and is not inventory data. The one exception is opt-in and never leaves the machine: `--archive-skills` keeps owner-only local zips of skills.
 - **Names, never values.** Environment variable names, flag names, hosts and paths survive; their values do not. Query strings, fragments and userinfo are stripped from URLs.
 - **Applied at collection**, inside the stage that touches the risky text — not as a filter afterwards, which is something a new probe can be added behind.
 - **Both directions are measured.** A leak is obvious; over-redaction is not. A dropped flag name is an undetected permission bypass, so signal retention is measured alongside leak count.

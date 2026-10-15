@@ -68,7 +68,7 @@ containers = ["adr_sensor", "adr_discovery"]
 exhaustive = true
 layers = [
     "api",
-    """cli : (catalog) : (contracts) : (coverage) : (diagnostics) : (enumerator) : (exporters) :
+    """cli : (archive) : (catalog) : (contracts) : (coverage) : (diagnostics) : (enumerator) : (exporters) :
     (extractor) : (host_identity) : (identifier) : (judge) : (observer) : (parsers) : (pipeline) :
     (redact) : (reporter) : (resolver) : (schemas) : (sensor_log) : (utils) : (world)""",
 ]
@@ -88,6 +88,7 @@ forbidden_modules = [
     "adr_sensor.schemas",
     "adr_sensor.sensor_log",
     "adr_sensor.utils",
+    "adr_discovery.archive",
     "adr_discovery.catalog",
     "adr_discovery.cli",
     "adr_discovery.contracts",

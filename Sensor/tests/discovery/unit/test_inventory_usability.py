@@ -91,7 +91,9 @@ def test_walk_reserves_shared_entries_for_directory_extraction(world):
         world.file(f"/wide/child{number}", "")
     world.file("/skills/example/SKILL.md", "---\nname: Example\n---\nPrivate skill body")
     gate = world.gate(budget=Budget(max_entries=30, reserved_walk_entries=10))
-    assert len(list(gate.walk("/wide"))) == 20
+    # The sweep applies the reserve as a stage ceiling around its walks.
+    with gate.budget.ceiling(gate.budget.max_entries - gate.budget.reserved_walk_entries):
+        assert len(list(gate.walk("/wide"))) == 20
     result = extract(gate, Candidate("marker_dir", "/skills", "app_state:surface"))
     assert [item.name for item in result.declarations] == ["Example"]
     assert gate.budget.entries_used == 21
@@ -103,7 +105,7 @@ def test_reserve_keeps_existing_positional_budget_arguments():
     budget = Budget(1024, 100, 3, 2.0, 4096, 2048, 10.0)
     assert budget.max_depth == 3
     assert budget.max_seconds == 10.0
-    assert budget.reserved_walk_entries == 0
+    assert budget.reserved_walk_entries == 10  # 10% of max_entries unless set
 
 
 def test_dependency_tree_is_pruned_before_it_spends_walk_budget(world):
@@ -145,7 +147,7 @@ def test_hook_names_use_executables_and_events_not_flag_values(world, command, t
     result = extract(world.gate(), Candidate("marker_file", path, "app_state:config"))
     (hook,) = result.declarations
     assert hook.name == title
-    assert hook.raw["hook_id"] == 0
+    assert hook.raw["identity"].startswith(f"hook:{path}:")
     assert "SYNTHETIC-CANARY" not in hook.name
     if "--token" in command or command.startswith("TOKEN="):
         assert "SYNTHETIC-CANARY" not in hook.command

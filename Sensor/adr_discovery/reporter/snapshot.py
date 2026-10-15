@@ -12,7 +12,17 @@ import json
 from enum import Enum
 
 from ..contracts.evidence import Band, Channel, Evidence, Rung
-from ..contracts.records import Asset, Finding, Kind, Liveness, ReviewItem, Risk
+from ..contracts.records import (
+    ArchiveRef,
+    Asset,
+    Finding,
+    Kind,
+    Liveness,
+    Provenance,
+    ReviewItem,
+    Risk,
+    SourceRef,
+)
 from ..contracts.snapshot import (
     SCHEMA_VERSION,
     BoundaryHit,
@@ -64,6 +74,7 @@ def from_dict(document: dict) -> Snapshot:
         review_queue=tuple(
             ReviewItem(path=r.get("path", ""), score=r.get("score", 0.0),
                        signals=tuple(r.get("signals", ())),
+                       evidence=_evidence(r),
                        suspected_catalog_id=r.get("suspected_catalog_id"),
                        suspected_name=r.get("suspected_name"),
                        candidate_kind=r.get("candidate_kind"))
@@ -96,12 +107,7 @@ def _asset(row: dict) -> Asset:
         confidence=Band(band.get("label", "none"),
                         tuple(Channel(c) for c in band.get("channels", ()))),
         verification=tuple(Rung(r) for r in row.get("verification", ())),
-        evidence=tuple(
-            Evidence(e.get("stage", ""), Channel(e["channel"]), e.get("path", ""),
-                     e.get("proof", ""), e.get("confidence", 0.0),
-                     Rung(e["rung"]) if e.get("rung") else None)
-            for e in row.get("evidence", ())
-        ),
+        evidence=_evidence(row),
         risk=Risk(
             pinned=risk.get("pinned"),
             factors=tuple(risk.get("factors", ())),
@@ -113,12 +119,51 @@ def _asset(row: dict) -> Asset:
         ),
         sanction=row.get("sanction", "unknown"),
         flags=tuple(row.get("flags", ())),
+        hook_event=row.get("hook_event"),
+        hook_matcher=row.get("hook_matcher"),
+        allowed_tools=tuple(row.get("allowed_tools", ())),
+        model=row.get("model"),
+        skill_sha256=row.get("skill_sha256"),
+        content_hash=row.get("content_hash"),
+        package_id=row.get("package_id"),
+        modified=row.get("modified"),
+        running_versions=tuple(row.get("running_versions", ())),
+        provenance=_provenance(row.get("provenance")),
+        plugin_asset_id=row.get("plugin_asset_id"),
+        archive=ArchiveRef(**row["archive"]) if row.get("archive") else None,
+    )
+
+
+def _provenance(row: dict | None) -> Provenance | None:
+    if not row:
+        return None
+    source = row.get("marketplace_source")
+    return Provenance(
+        state=row.get("state", "unregistered"),
+        host=row.get("host"),
+        marketplace=row.get("marketplace"),
+        marketplace_source=SourceRef(**source) if source else None,
+        plugin=row.get("plugin"),
+        plugin_version=row.get("plugin_version"),
+        install_scope=row.get("install_scope"),
+        installed_at=row.get("installed_at"),
+        enabled=row.get("enabled"),
+    )
+
+
+def _evidence(row: dict) -> tuple[Evidence, ...]:
+    return tuple(
+        Evidence(e.get("stage", ""), Channel(e["channel"]), e.get("path", ""),
+                 e.get("proof", ""), e.get("confidence", 0.0),
+                 Rung(e["rung"]) if e.get("rung") else None)
+        for e in row.get("evidence", ())
     )
 
 
 def _finding(row: dict) -> Finding:
     return Finding(rule=row.get("rule", ""), severity=row.get("severity", "medium"),
-                   asset_id=row.get("asset_id", ""), summary=row.get("summary", ""))
+                   asset_id=row.get("asset_id", ""), summary=row.get("summary", ""),
+                   evidence=_evidence(row))
 
 
 def _coverage(row: dict) -> Coverage:

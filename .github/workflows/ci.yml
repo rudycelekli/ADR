@@ -66,6 +66,10 @@ jobs:
       - name: Run tests
         run: uv run --python ${{ matrix.python-version }} pytest tests/ -q
 
+      - name: Lint Discovery
+        if: matrix.python-version == '3.12'
+        run: uv run --python ${{ matrix.python-version }} ruff check adr_discovery tests/discovery
+
       - name: Build distributions
         if: matrix.python-version == '3.12'
         run: uv build
@@ -82,3 +86,14 @@ jobs:
     steps:
       - name: All Sensor matrix legs must pass
         run: test "${{ needs.test-sensor.result }}" = "success"
+
+  # adr_sensor and adr_discovery each ship a generated copy of Common/ source
+  # (see Common/README.md). Fail when a copy was edited or not regenerated.
+  shared-source:
+    name: Shared source in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check generated copies
+        run: python3 Common/sync.py --check

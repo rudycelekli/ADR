@@ -312,7 +312,10 @@ Examples:
                 user_cpu = _delta("ru_utime")
                 sys_cpu = _delta("ru_stime")
 
-                raw_maxrss = getattr(end_self, "ru_maxrss", 0)
+                raw_maxrss = max(
+                    getattr(end_self, "ru_maxrss", 0),
+                    getattr(end_children, "ru_maxrss", 0),
+                )
                 if host_os == "Darwin":
                     max_rss_bytes = int(raw_maxrss)
                 else:

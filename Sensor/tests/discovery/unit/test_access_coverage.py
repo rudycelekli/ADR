@@ -354,7 +354,7 @@ def test_new_evidence_survives_json_round_trip():
     restored = from_dict(json.loads(to_json(original)))
     assert restored.coverage == original.coverage
     assert stats(restored)["coverage_gaps"] == 2
-    assert restored.schema_version == "1.1"
+    assert restored.schema_version == "1.2"
 
 
 def test_legacy_policy_reclassification_does_not_claim_the_location_became_readable():
