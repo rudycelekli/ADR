@@ -29,3 +29,6 @@ output/
 # Local secrets
 .env
 .env.*
+
+# Agent scratch documents
+.scratch/
