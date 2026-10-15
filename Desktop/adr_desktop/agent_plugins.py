@@ -15,7 +15,7 @@ from .integrations.agents import (
     HARNESS_LABELS,
     PLUGIN_NAME,
     SCHEMA,
-    _bundle_root,
+    bundle_root,
     check_location,
     directory,
     read_receipt,
@@ -122,7 +122,7 @@ def build_bundle(runtime, harness, grant_id, market, *, unified=False):
     """Generate a profile-bound package; never put a bearer token inside it."""
     import shlex
 
-    root = _bundle_root(runtime.state_dir, harness)
+    root = bundle_root(runtime.state_dir, harness)
     for parent in (root, *root.parents):
         if parent == runtime.state_dir:
             break
