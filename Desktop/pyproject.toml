@@ -160,12 +160,12 @@ layers = [
 ]
 
 [[tool.importlinter.contracts]]
-name = "Detection's review part imports no Desktop module except storage's file helpers and IDs"
+name = "Detection's review part imports no Desktop module except storage's file helpers and clock"
 type = "forbidden"
 source_modules = ["adr_desktop.detection.review"]
 # The layers contract above already keeps all of detection off Desktop's other modules. Review gets
-# the database from Desktop, so it does not import storage's database layer either.
-forbidden_modules = ["adr_desktop.storage.database"]
+# the database from Desktop, so it does not import the rest of storage either.
+forbidden_modules = ["adr_desktop.storage.database", "adr_desktop.storage.ids"]
 
 [[tool.importlinter.contracts]]
 name = "The feed engine imports nothing from Desktop outside itself, Sensor, Discovery or the server"

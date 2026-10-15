@@ -7,7 +7,7 @@ import secrets
 import sys
 from pathlib import Path
 
-from .storage.ids import utcnow as utcnow  # Desktop's flat modules import it from here.
+from .storage.clock import utcnow as utcnow  # Desktop's flat modules import it from here.
 
 MAX_STATE_BYTES = 1024 * 1024 * 1024
 CAPTURE_INTERVAL_SECONDS = (300, 900, 1800, 3600)

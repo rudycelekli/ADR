@@ -7,8 +7,9 @@ from pathlib import Path
 
 from ..detection.inline.credentials import detect_credentials, detect_prompt_credentials, find_credentials
 from ..detection.operation import resolve_path
+from ..storage.clock import utcnow
 from ..storage.files import atomic_json, canonical
-from ..storage.ids import new_id, utcnow
+from ..storage.ids import new_id
 from .contracts import SAFE_ERRORS, NativeTimedOut, NativeUnavailable
 from .ports import Grants, Guard, NativeVault
 

@@ -7,8 +7,8 @@ import threading
 import time
 import uuid
 
+from ...storage.clock import utcnow
 from ...storage.files import canonical
-from ...storage.ids import utcnow
 from ..ports import DeviceIdle, SessionSource
 from .contracts import ERRORS, ReviewError
 from .quota import admission, combine_claude, number

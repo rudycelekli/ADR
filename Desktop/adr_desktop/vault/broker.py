@@ -7,8 +7,9 @@ import threading
 import time
 from urllib.parse import urlsplit
 
+from ..storage.clock import utcnow
 from ..storage.files import canonical
-from ..storage.ids import new_id, utcnow
+from ..storage.ids import new_id
 from .contracts import SAFE_ERRORS, NativeUnavailable
 from .ports import Grants, NativeVault
 
