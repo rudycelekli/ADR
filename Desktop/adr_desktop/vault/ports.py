@@ -16,10 +16,17 @@ class NativeVault(Protocol):
         the operation does not finish within ``timeout`` seconds."""
 
 
+class GuardDecision(Protocol):
+    """What the vault reads of protection's ``Decision``. The vault does not import protection."""
+
+    decision: str
+    artifact: dict | None
+
+
 class Guard(Protocol):
     """ADR's protection decision on a credential-backed command, and the owner's approval of it."""
 
-    def evaluate(self, command: str, cwd: str, environment: dict[str, str]):
+    def evaluate(self, command: str, cwd: str, environment: dict[str, str]) -> GuardDecision:
         """Decide ``command`` as an agent's shell command run in ``cwd`` with ``environment``.
 
         The result's ``decision`` is "pass", "ask" or "deny"; its ``artifact`` is set when a known

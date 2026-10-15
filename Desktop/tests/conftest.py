@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from adr_desktop.api import create_app
+from adr_desktop.protection.contracts import Decision
 from adr_desktop.runtime import Runtime
 from adr_desktop.storage.files import prepare_state_dir
 from adr_desktop.store import Store
@@ -97,7 +98,7 @@ class FakeGuard:
         self.approvals = []
 
     def evaluate(self, command, cwd, environment):
-        return SimpleNamespace(decision=self.decision, artifact=self.artifact)
+        return Decision(decision=self.decision, artifact=self.artifact)
 
     def approve(self, agent, command, cwd, variables):
         self.approvals.append({"agent": agent, "command": command, "cwd": cwd, "variables": variables})
