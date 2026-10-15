@@ -2,33 +2,34 @@
 
 The native guardian execs ``<python> -m adr_desktop hook ... --guard-protocol --phase <phase>``
 and discards the core's stderr. These tests run that same command in a fresh
-interpreter and read the loaded module set from ``PYTHONPROFILEIMPORTTIME``.
+interpreter and read the loaded module set from ``PYTHONPROFILEIMPORTTIME``, and
+time the hook module's import with ``-X importtime``.
 """
 
 import json
 import os
+import statistics
 import subprocess
 import sys
+import tomllib
+from pathlib import Path
 
 import pytest
 
-FORBIDDEN = (
-    "fastapi",
-    "uvicorn",
-    "starlette",
-    "adr_desktop.runtime",
-    "adr_desktop.api",
-    "adr_desktop.store",
-    "adr_desktop.storage.database",
-    "adr_desktop.detection.review",
-    "adr_desktop.security_reviews",
-    "adr_sensor",
-    "adr_discovery",
-)
+DESKTOP = Path(__file__).resolve().parents[1]
 
-# Forbidden modules the hook still loads, by phase. None are left. These
-# lists only shrink: delete an entry once the hook stops loading it.
-KNOWN_LOADS = {"pre": (), "prompt": ()}
+
+def hook_contract():
+    pyproject = tomllib.loads((DESKTOP / "pyproject.toml").read_text(encoding="utf-8"))
+    [contract] = [
+        contract for contract in pyproject["tool"]["importlinter"]["contracts"]
+        if contract["type"] == "forbidden" and "adr_desktop.hooks" in contract["source_modules"]
+    ]
+    return contract
+
+
+# import-linter stops the hook importing these; the process must not load them by any other route either.
+FORBIDDEN = tuple(hook_contract()["forbidden_modules"])
 
 
 def loaded_modules(stderr):
@@ -68,8 +69,23 @@ def test_hook_process_loads_no_forbidden_module(runtime, phase, event, decision)
     assert (result.returncode, result.stdout) == (0, decision + "\n")
     modules = loaded_modules(result.stderr)
     assert ("adr_desktop.prompt_guard" if phase == "prompt" else "adr_desktop.hooks") in modules
-    known = KNOWN_LOADS[phase]
-    loaded = sorted(name for name in modules if any(within(name, prefix) for prefix in FORBIDDEN))
-    assert [name for name in loaded if not any(within(name, prefix) for prefix in known)] == []
-    still_loaded = [prefix for prefix in known if any(within(name, prefix) for name in loaded)]
-    assert still_loaded == list(known), "Remove the entries the hook no longer loads"
+    assert sorted(name for name in modules if any(within(name, prefix) for prefix in FORBIDDEN)) == []
+
+
+def hook_import_ms():
+    result = subprocess.run(
+        [sys.executable, "-X", "importtime", "-c", "import adr_desktop.hooks"],
+        capture_output=True, text=True, timeout=10, check=True,
+    )
+    for line in result.stderr.splitlines():
+        parts = [part.strip() for part in line.split("|")]
+        if len(parts) == 3 and parts[2] == "adr_desktop.hooks":
+            return int(parts[1]) / 1000
+    raise AssertionError("adr_desktop.hooks is missing from the -X importtime output")
+
+
+def test_hook_import_time_stays_within_budget():
+    # About 27 ms locally. The ceiling is generous because CI runners are noisy; the module set
+    # above is the strict check.
+    hook_import_ms()  # Warm the bytecode cache.
+    assert statistics.median(hook_import_ms() for _ in range(5)) < 150
