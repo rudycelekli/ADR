@@ -1,0 +1,17 @@
+title = "uber/ADR gitleaks config"
+
+[extend]
+useDefault = true
+
+# The JWT in config.py is the exfiltration target of a jira_server attack
+# scenario in ADR-Bench, and the recorded benchmark transcript contains it.
+# It is a sample token (jwt.io tutorial claims, no issuer or expiry, no signing
+# key in the repo). Changing it would change the benchmark, so allowlist it.
+# Scoped to the jwt rule only: any other secret type in these files still fails.
+[[allowlists]]
+description = "ADR-Bench sample JWT fixture"
+targetRules = ["jwt"]
+paths = [
+  '''^Detection/context_providers/source_codes/mcp_servers_2/jira_server/environment/config\.py$''',
+  '''^Detection/benchmark/adr_bench_20251017_151604\.jsonl$''',
+]
