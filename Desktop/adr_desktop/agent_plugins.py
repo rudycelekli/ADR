@@ -392,15 +392,13 @@ def disconnect_offline(state_dir, harness, *, driver=None):
     from types import SimpleNamespace
 
     from .store import Store
+    from .vault import broker
 
     store = Store(state_dir)
 
     def revoke(identifier):
         store.execute("UPDATE grants SET revoked=1 WHERE id=?", (identifier,))
-        store.execute(
-            "UPDATE broker_requests SET state='revoked',result=NULL WHERE grant_id=?",
-            (identifier,),
-        )
+        broker.revoke_requests(store, identifier)
 
     owner = SimpleNamespace(
         state_dir=state_dir,

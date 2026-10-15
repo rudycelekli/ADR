@@ -123,6 +123,13 @@ def validate_profile(value: dict) -> dict:
     }
 
 
+def revoke_requests(store, grant_id: str):
+    """Desktop revoked this grant: its requests can no longer be approved; their results are dropped.
+
+    A function of the store, not of a Broker, so Desktop can revoke while the menu-bar app is not running."""
+    store.execute("UPDATE broker_requests SET state='revoked',result=NULL WHERE grant_id=?", (grant_id,))
+
+
 class Broker:
     def __init__(self, store, native: NativeVault, grants: Grants):
         self.store = store
@@ -204,12 +211,6 @@ class Broker:
         self.native.call("vault_delete", {"id": identifier})
         self.store.execute("DELETE FROM credentials WHERE id=?", (identifier,))
         self.store.audit("credential_removed", f"Removed credential: {credential['name']}")
-
-    def revoke_requests(self, grant_id: str):
-        """Desktop revoked this grant: its requests can no longer be approved; their results are dropped."""
-        self.store.execute(
-            "UPDATE broker_requests SET state='revoked',result=NULL WHERE grant_id=?", (grant_id,)
-        )
 
     def expire(self):
         self.store.execute(

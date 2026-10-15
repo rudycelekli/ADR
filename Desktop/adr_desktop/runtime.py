@@ -25,7 +25,7 @@ from .storage.files import atomic_json, canonical, read_private_json
 from .storage.ids import new_id
 from .store import Store
 from .threat_protection import MAX_POLICY_BYTES, ThreatProtection, initialize_threats
-from .vault.broker import Broker
+from .vault.broker import Broker, revoke_requests
 from .vault.environment import EnvironmentVault
 
 
@@ -384,7 +384,7 @@ class Runtime:
 
     def revoke_grant(self, identifier: str):
         self.store.execute("UPDATE grants SET revoked=1 WHERE id=?", (identifier,))
-        self.broker.revoke_requests(identifier)
+        revoke_requests(self.store, identifier)
         self.store.audit("agent_revoked", "Agent access revoked", {"id": identifier})
 
     def status(self):
