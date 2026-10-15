@@ -136,12 +136,11 @@ def test_existing_alias_of_a_protected_folder_is_not_duplicated(mac_runtime):
 
 def test_paused_rules_and_other_preferences_remain_unchanged(mac_runtime):
     runtime = mac_runtime
-    runtime.change_policy(enabled=False, opaque_tools="block")
+    runtime.change_policy(enabled=False)
     settings = runtime.store.settings()
     result = runtime.add_starter_protection()
     assert result["enabled"] is False
     assert runtime.policy["enabled"] is False
-    assert runtime.policy["opaque_tools"] == "block"
     assert runtime.store.settings() == settings
     assert evaluate(tool_event(Path.home() / ".ssh/id_work"), "claude", runtime.policy).decision == "pass"
 

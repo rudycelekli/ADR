@@ -97,23 +97,20 @@ literal file operands in simple `cat`, `head`, and `tail` commands. The bounded
 shell recognizer supports common display/count flags, quoted filenames, the
 tool's working directory, and one standard `sh`/`bash`/`zsh`/`dash` `-c` or
 `-lc` wrapper. It does not interpret pipelines, compound commands,
-substitutions, redirects, scripts, or arbitrary executables. Those retain the
-chosen unclassified-command behavior.
+substitutions, redirects, scripts, or arbitrary executables. Those are left to
+the agent's own permissions.
 
-File rules do not enable blanket command approvals. **Advanced: command approvals** offers
-**Off (default)**, **Ask each time**, and **Block** for shell execution and
-unrecognized tools. Known non-file coordination tools do not prompt. Turning
-strict review off does not disable matching file rules, supported credential
-checks, or the agent's own permissions.
-An explicit command **Block** remains stronger than a file **Ask** rule.
+ADR asks or blocks only when a file rule or ADR's own configuration matches.
+There is no blanket command or unknown-tool approval mode; commands that match
+no rule pass to the agent's own permissions.
 
 Arbitrary commands and third-party tools are not a filesystem sandbox: they can
-access files indirectly without supplying a path that ADR can check. Use strict
-review or an OS sandbox where that coverage is required; an unprotected working
-directory alone never proves which files a command will access.
+access files indirectly without supplying a path that ADR can check. Use an OS
+sandbox where that coverage is required; an unprotected working directory alone
+never proves which files a command will access.
 
-Older previews' implicit Ask behavior migrates to Off. An explicitly saved Block
-choice is preserved, as are file rules and subsequent explicit review choices.
+Earlier previews offered strict command review (**Ask each time** / **Block**
+for every command). Startup removes that saved setting and keeps file rules.
 App startup updates an already managed guardian to the current protocol; it does
 not install, trust, enable, or re-enable any agent integration.
 
@@ -126,7 +123,7 @@ deadline. Policy is checked again before showing a dialog and after the owner's
 answer. Expired requests cannot become late approvals or stale popups.
 
 The native guardian preserves closed, content-free failure reasons: protected
-path, strict execution policy, owner denial, expiry, queue capacity, unavailable
+path, owner denial, expiry, queue capacity, unavailable
 app/policy, invalid request, and safety-check timeout. It never inserts raw tool
 arguments or a free-form backend error into a harness response.
 

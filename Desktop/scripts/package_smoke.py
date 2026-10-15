@@ -209,7 +209,7 @@ def main():
                 )
                 assert literal_read.returncode == 0
                 assert json.loads(literal_read.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
-                assert cached["strict_execution"] is False
+                assert "strict_execution" not in cached and "opaque_tools" not in cached
                 for tool in ("Bash", "exec_command", "collaborationsend_message"):
                     ordinary = subprocess.run(
                         [str(guard), "codex", str(state)],
@@ -222,20 +222,7 @@ def main():
                     )
                     assert ordinary.returncode == 0
                     assert json.loads(ordinary.stdout) == {}
-                assert call("PATCH", "/api/protection", {"strict_execution": True})[0] == 200
-                unavailable = subprocess.run(
-                    [str(guard), "codex", str(state)],
-                    input=json.dumps({
-                        "tool_name": "Bash",
-                        "tool_input": {"command": "pwd"},
-                        "cwd": project,
-                    }),
-                    text=True, capture_output=True, timeout=6,
-                )
-                output = json.loads(unavailable.stdout)["hookSpecificOutput"]
-                assert output["permissionDecision"] == "deny"
-                assert "approval dialog is unavailable" in output["permissionDecisionReason"]
-                assert call("PATCH", "/api/protection", {"strict_execution": False})[0] == 200
+                assert call("PATCH", "/api/protection", {"strict_execution": True})[0] == 422
             status, body = call("POST", "/api/agents", {"name": "Synthetic MCP", "project": project})
             assert status == 200, f"Grant creation failed: HTTP {status}"
             access = state / "agents" / f"{json.loads(body)['id']}.json"

@@ -16,12 +16,10 @@ def evaluate(event, harness, snapshot):
     return evaluate_rules(event_operation(event, harness), snapshot)
 
 
-def snapshot(path, *, action="block", strict=False):
+def snapshot(path, *, action="block"):
     return {
         "version": 1,
         "enabled": True,
-        "strict_execution": strict,
-        "opaque_tools": "ask",
         "rules": [
             {"id": "fixture", "path": str(path), "kind": "file", "action": action, "label": "Protected"}
         ],
@@ -164,19 +162,14 @@ def test_shell_alias_resolves_symlink_and_does_not_read_secret_value(tmp_path):
         "bash -c 'cat protected.txt' unused-positional",
     ],
 )
-def test_opaque_or_compound_commands_keep_explicit_strict_policy(tmp_path, command):
+def test_opaque_or_compound_commands_are_left_to_agent_permissions(tmp_path, command):
     event = bash(tmp_path, command)
-    protected = tmp_path / "protected.txt"
-    assert evaluate(event, "codex", snapshot(protected)).decision == "pass"
-    assert evaluate(event, "codex", snapshot(protected, strict=True)).decision == "ask"
+    assert evaluate(event, "codex", snapshot(tmp_path / "protected.txt")).decision == "pass"
 
 
-def test_strict_mode_still_reviews_even_a_public_literal_command(tmp_path):
-    result = evaluate(
-        bash(tmp_path, "cat public.txt"), "codex", snapshot(tmp_path / "protected.txt", strict=True)
-    )
-    assert result.decision == "ask"
-    assert result.reason_code == "execution_policy"
+def test_public_literal_command_passes(tmp_path):
+    result = evaluate(bash(tmp_path, "cat public.txt"), "codex", snapshot(tmp_path / "protected.txt"))
+    assert result.decision == "pass"
 
 
 def test_shell_read_resolves_ask_policy_without_weakened_scope(tmp_path):
@@ -185,14 +178,6 @@ def test_shell_read_resolves_ask_policy_without_weakened_scope(tmp_path):
     )
     assert result.decision == "ask"
     assert result.rule_id == "fixture"
-
-
-def test_explicit_command_block_has_priority_over_file_ask(tmp_path):
-    policy = snapshot(tmp_path / "protected.txt", action="ask", strict=True)
-    policy["opaque_tools"] = "block"
-    result = evaluate(bash(tmp_path, "cat protected.txt"), "codex", policy)
-    assert result.decision == "deny"
-    assert result.reason_code == "execution_policy"
 
 
 def test_native_codex_hook_blocks_literal_read_with_daemon_offline(runtime, tmp_path):

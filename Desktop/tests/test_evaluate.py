@@ -11,8 +11,6 @@ def snapshot(path):
     return {
         "version": 1,
         "enabled": True,
-        "strict_execution": False,
-        "opaque_tools": "ask",
         "rules": [
             {"id": "fixture", "path": str(path), "kind": "file", "action": "block", "label": "Protected"}
         ],

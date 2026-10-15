@@ -66,8 +66,6 @@ class Rule(Input):
 
 class PolicySettings(Input):
     enabled: bool | None = None
-    opaque_tools: Literal["ask", "block"] | None = None
-    strict_execution: bool | None = Field(default=None, strict=True)
 
 
 class Credential(Input):

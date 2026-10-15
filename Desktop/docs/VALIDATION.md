@@ -352,7 +352,7 @@ unredacted, and Context sharing can include content preserved in those logs.
   not equivalent live model-driven validation in this run. Their native
   installation commands remain simulated in automated browser tests.
 - The bounded shell recognizer is not an arbitrary-command filesystem sandbox.
-  Other shell syntax retains the user's explicit unclassified-command setting.
+  Other shell syntax is left to the agent's own permissions.
 - The environment runner supplies text values to programs; it is not automatic
   prompt rewriting/import, SSH-agent service, browser autofill, or credential-file
   creation. Existing API-only entries remain GET-only. Generic execution does

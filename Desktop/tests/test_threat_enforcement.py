@@ -40,6 +40,16 @@ def protected(snapshot, feed=None):
     return {**snapshot, "threats": {"enabled": True, "generation": feed or package_generation()}}
 
 
+def asking(snapshot, path):
+    """Add a file Ask rule: the only way an operation now reaches owner approval."""
+    rule = {"id": "fixture-ask", "path": str(path), "kind": "file", "action": "ask", "label": "Fixture"}
+    return {**snapshot, "rules": [*snapshot["rules"], rule]}
+
+
+def read_event(path):
+    return {"tool_name": "Read", "tool_input": {"file_path": str(path)}, "cwd": str(path.parent)}
+
+
 def command_event(tmp_path, command="npm install fixture-package@1.2.3", harness="codex"):
     if harness == "copilot":
         return {"toolName": "bash", "toolArgs": {"command": command}, "cwd": str(tmp_path)}
@@ -86,13 +96,13 @@ def test_trusted_adr_pass_still_receives_artifact_check(runtime, tmp_path, monke
     assert decision.reason_code == "known_malicious_artifact"
 
 
-def test_unknown_keeps_ask_and_disabled_feature_keeps_file_policy(runtime, tmp_path):
-    snapshot = protected({**runtime.policy, "strict_execution": True, "opaque_tools": "ask"})
+def test_unknown_command_passes_and_disabled_feature_keeps_file_policy(runtime, tmp_path):
+    snapshot = protected(runtime.policy)
     event = command_event(tmp_path, "echo routine")
-    assert evaluate_operation(event, "codex", snapshot, state_dir=runtime.state_dir).decision == "ask"
+    assert evaluate_operation(event, "codex", snapshot, state_dir=runtime.state_dir).decision == "pass"
     snapshot["threats"]["enabled"] = False
     assert evaluate_operation(command_event(tmp_path), "codex", snapshot,
-                              state_dir=runtime.state_dir).decision == "ask"
+                              state_dir=runtime.state_dir).decision == "pass"
     assert "artifact" not in Decision().as_dict()
 
 
@@ -324,67 +334,48 @@ def test_daemon_scope_retains_absolute_file_hash_enforcement(runtime, tmp_path):
     assert decision.reason_code == "known_malicious_artifact"
 
 
-@pytest.mark.parametrize("ecosystem,variable,command,registry", [
-    ("npm", "NPM_CONFIG_REGISTRY", "npm install fixture-package@1.2.3", "https://registry.npmjs.org"),
-    ("pypi", "PIP_INDEX_URL", "pip install fixture-package==1.2.3", "https://pypi.org"),
-])
-@pytest.mark.parametrize("private_harness", [False, True])
 @pytest.mark.parametrize("receipt_code", ["approved", "no_match"])
-def test_final_hook_rechecks_original_environment_and_latest_feed(
-    runtime, tmp_path, monkeypatch, capsys, ecosystem, variable, command, registry,
-    private_harness, receipt_code,
-):
-    current = protected(
-        {**runtime.policy, "strict_execution": receipt_code == "approved"},
-        generation(("package", {
-            "ecosystem": ecosystem, "registry": registry, "name": "fixture-package", "versions": ["1.2.3"],
-        })),
-    )
-    initial = {**(current if private_harness else protected(current, generation())), "strict_execution": True}
-    event = command_event(tmp_path, command)
-    if private_harness:
-        monkeypatch.setenv(variable, "https://private.example.invalid")
-    else:
-        monkeypatch.delenv(variable, raising=False)
+def test_final_hook_rechecks_latest_feed_after_approval(runtime, tmp_path, monkeypatch, capsys, receipt_code):
+    target = tmp_path / "fixture.bin"
+    target.write_bytes(b"inert fixture")
+    initial = asking(protected(runtime.policy, generation()), target)
+    # An automatic no-match pass means the daemon no longer saw the Ask rule.
+    daemon_view = initial if receipt_code == "approved" else {**initial, "rules": runtime.policy["rules"]}
+    current = protected(daemon_view, generation(
+        ("file_sha256", {"sha256": hashlib.sha256(target.read_bytes()).hexdigest()}),
+    ))
+    event = read_event(target)
 
     def approve(_payload):
-        with monkeypatch.context() as daemon:
-            if private_harness:
-                daemon.delenv(variable, raising=False)
-            else:
-                daemon.setenv(variable, "https://private.example.invalid")
-            checked = evaluate_operation(
-                event, "codex", current, state_dir=runtime.state_dir, allow_adr_trust=False,
-                artifact_scope="direct_files",
-            )
-            assert checked.decision == ("ask" if receipt_code == "approved" else "pass")
-            assert checked.artifact is None
+        checked = evaluate_operation(
+            event, "codex", daemon_view, state_dir=runtime.state_dir, allow_adr_trust=False,
+            artifact_scope="direct_files",
+        )
+        assert checked.decision == ("ask" if receipt_code == "approved" else "pass")
+        assert checked.artifact is None
         # Simulate publication between the daemon's final check and its reply.
         atomic_json(runtime.state_dir / "policy.json", current)
         return {"allowed": True, "reason_code": receipt_code}
 
     output, receipts = pending_hook(runtime, event, initial, approve, monkeypatch, capsys)
-    if private_harness:
-        assert output == {}
-        assert receipts[-1]["decision"] == "pass" and "artifact" not in receipts[-1]
-    else:
-        assert output["hookSpecificOutput"]["permissionDecision"] == "deny"
-        assert "known malicious artifact" in output["hookSpecificOutput"]["permissionDecisionReason"]
-        artifact = receipts[-1]["artifact"]
-        assert set(artifact) == {"indicator_id", "source_id", "kind", "generation", "target_display"}
-        assert artifact["generation"] == current["threats"]["generation"]["digest"]
-        assert artifact["indicator_id"] == BUNDLED_FEED_ID + "/fixture-0"
-        assert artifact["source_id"] == BUNDLED_FEED_ID and artifact["kind"] == "package"
-        assert receipts[-1].get("approval_requested", False) is (receipt_code == "approved")
+    assert output["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert "known malicious artifact" in output["hookSpecificOutput"]["permissionDecisionReason"]
+    artifact = receipts[-1]["artifact"]
+    assert set(artifact) == {"indicator_id", "source_id", "kind", "generation", "target_display"}
+    assert artifact["generation"] == current["threats"]["generation"]["digest"]
+    assert artifact["indicator_id"] == BUNDLED_FEED_ID + "/fixture-0"
+    assert artifact["source_id"] == BUNDLED_FEED_ID and artifact["kind"] == "file_sha256"
+    assert receipts[-1].get("approval_requested", False) is (receipt_code == "approved")
 
 
 def test_automatic_daemon_pass_cannot_approve_new_ask_rule(runtime, tmp_path, monkeypatch, capsys):
-    snapshot = protected({**runtime.policy, "strict_execution": True}, generation())
-    event = command_event(tmp_path, "echo inert")
+    target = tmp_path / "fixture.txt"
+    snapshot = asking(protected(runtime.policy, generation()), target)
+    event = read_event(target)
 
     def approve(_payload):
         automatic = evaluate_operation(
-            event, "codex", {**snapshot, "strict_execution": False},
+            event, "codex", {**snapshot, "rules": runtime.policy["rules"]},
             state_dir=runtime.state_dir, allow_adr_trust=False, artifact_scope="direct_files",
         )
         assert automatic.decision == "pass"
@@ -402,7 +393,8 @@ def test_automatic_daemon_pass_cannot_approve_new_ask_rule(runtime, tmp_path, mo
 def test_positive_approval_cannot_pass_corrupt_refreshed_policy(
     runtime, tmp_path, monkeypatch, capsys, corruption,
 ):
-    snapshot = protected({**runtime.policy, "strict_execution": True}, generation())
+    target = tmp_path / "fixture.txt"
+    snapshot = asking(protected(runtime.policy, generation()), target)
 
     def approve(_payload):
         changed = json.loads(json.dumps(snapshot))
@@ -414,7 +406,7 @@ def test_positive_approval_cannot_pass_corrupt_refreshed_policy(
         return {"allowed": True, "reason_code": "approved"}
 
     output, receipts = pending_hook(
-        runtime, command_event(tmp_path, "echo inert"), snapshot, approve, monkeypatch, capsys,
+        runtime, read_event(target), snapshot, approve, monkeypatch, capsys,
     )
     assert output["hookSpecificOutput"]["permissionDecision"] == "deny"
     assert "local protection policy" in output["hookSpecificOutput"]["permissionDecisionReason"]

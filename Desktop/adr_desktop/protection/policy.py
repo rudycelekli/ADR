@@ -16,7 +16,7 @@ from ..detection.operation import (
     printable,
     resolve_path,
 )
-from .contracts import DENIAL_REASONS, Decision
+from .contracts import Decision
 
 
 def _comparison(path: Path) -> str:
@@ -142,28 +142,4 @@ def evaluate(operation: Operation, snapshot: dict) -> Decision:
         result.decision = "deny" if rule["action"] == "block" else "ask"
         action = "blocked" if result.decision == "deny" else "requires your approval"
         result.reason = f"ADR: {rule['label']} is protected; this access is {action}."
-        strict = snapshot.get("strict_execution", snapshot.get("opaque_tools") == "block")
-        if not isinstance(strict, bool):
-            raise ValueError("Invalid strict execution setting")
-        if (
-            result.decision == "ask" and name in SHELL_TOOLS
-            and strict and snapshot.get("opaque_tools") == "block"
-        ):
-            # A file's Ask rule must never weaken an explicit Block-all-
-            # execution choice merely because its literal path is recognized.
-            result.decision = "deny"
-            result.reason_code = "execution_policy"
-            result.reason = DENIAL_REASONS["execution_policy"]
-        return result
-    if name not in DIRECT_TOOLS | SEARCH_TOOLS:
-        strict = snapshot.get("strict_execution", snapshot.get("opaque_tools") == "block")
-        if not isinstance(strict, bool):
-            raise ValueError("Invalid strict execution setting")
-        if strict:
-            result.decision = "deny" if snapshot.get("opaque_tools") == "block" else "ask"
-            result.reason_code = "execution_policy"
-            result.reason = (
-                DENIAL_REASONS["execution_policy"] if result.decision == "deny"
-                else "Strict execution review is enabled. Review this command or unrecognized tool."
-            )
     return result

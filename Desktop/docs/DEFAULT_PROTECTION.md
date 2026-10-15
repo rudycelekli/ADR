@@ -71,8 +71,9 @@ Downloads, repositories, and the entire home directory are not default blocks.
 
 A direct file-tool request can be blocked by path. An operating-system
 credential API, a shell command, or an unclassified MCP tool can access data
-indirectly; ADR cannot prove every file it will touch and applies the existing
-Ask first / Block policy for those opaque operations. These are cooperative
+indirectly; ADR cannot prove every file it will touch, checks only the literal
+paths it can see, and otherwise leaves those operations to the agent's own
+permissions. These are cooperative
 agent controls, not a system-wide sandbox or a guarantee that a credential
 cannot be accessed by another process. File rules do not redact already
 captured session history. See the [security model](SECURITY.md).

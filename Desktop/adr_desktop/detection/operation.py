@@ -90,8 +90,8 @@ def literal_shell_files(arguments: dict, cwd: str) -> list[Path]:
     """Recognize a small set of literal reads, without executing or expanding shell.
 
     This deliberately is not a shell interpreter. Pipelines, substitutions,
-    redirects, compound commands, scripts, and other executables remain subject
-    to the user's existing unclassified-execution setting.
+    redirects, compound commands, scripts, and other executables are left to
+    the agent's own permissions.
     """
     command = arguments.get("command", arguments.get("cmd"))
     if not isinstance(command, str) or len(command) > 16384:

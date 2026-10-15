@@ -73,7 +73,7 @@ def test_toggle_is_independent_and_embedded_policy_remains_valid(runtime, client
     saved = read_private_json(runtime.state_dir / "policy.json")
     assert saved["threats"]["enabled"] is enabled
     assert saved["revision"] != original["revision"]
-    for key in ("enabled", "rules", "strict_execution", "opaque_tools"):
+    for key in ("enabled", "rules"):
         assert saved[key] == original[key]
     assert compile_generation(saved["threats"]["generation"]).digest == response.json()["feed"]["generation"]
 
@@ -343,7 +343,7 @@ def test_baseline_refresh_changes_policy_revision_without_changing_other_prefere
     restored = runtime._load_policy()
     assert restored["revision"] != original["revision"]
     assert restored["threats"]["generation"]["digest"] != original["threats"]["generation"]["digest"]
-    for key in ("enabled", "rules", "strict_execution", "opaque_tools"):
+    for key in ("enabled", "rules"):
         assert restored[key] == original[key]
 
 

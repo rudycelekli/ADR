@@ -189,11 +189,11 @@ Protection → Custom artifact list**.
   values. See [hook support and limits](docs/HOOKS.md).
 - Resolve relative paths and symlinks; check protected-file hard links and
   recursive searches of protected descendants.
-- Command and unknown-tool review is separate and **Off by default**. Opt into
-  **Ask each time** or **Block** under **Advanced: command approvals**. Direct
-  file rules and supported credential checks remain active when this is off;
-  arbitrary command execution is not a filesystem sandbox.
-- Ask rules and command approvals use the harness's native prompt where
+- Protection decides only from file rules. Shell commands and unrecognized
+  tools are checked for literal protected paths and otherwise left to the
+  agent's own permissions; arbitrary command execution is not a filesystem
+  sandbox.
+- Ask rules use the harness's native prompt where
   supported, or a one-shot native ADR dialog. Without an available approval
   surface they block; an unsupported `ask` value is never emitted as if safe.
 - Concurrent ADR approvals queue in order rather than being rejected because

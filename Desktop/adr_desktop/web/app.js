@@ -1525,25 +1525,6 @@ async function protectionPage() {
   const customRules = policy.rules.filter(rule => rule.preset !== starter.id);
   const starterRules = policy.rules.filter(rule => rule.preset === starter.id);
   const connected = state.status.hooks.filter(hook => hook.installed);
-  const currentReview = policy.strict_execution ? policy.opaque_tools : "off";
-  const executionReview = el("select", {
-    "aria-label": "Command and unknown-tool review",
-    onChange: async event => {
-      const select = event.target, mode = select.value;
-      select.disabled = true;
-      try {
-        await perform(() => api("/protection", { method: "PATCH", body: {
-          strict_execution: mode !== "off",
-          ...(mode === "off" ? {} : { opaque_tools: mode }),
-        } }), "Command approval preference updated");
-        render();
-      } catch { select.value = currentReview; }
-      finally { select.disabled = false; }
-    },
-  }, el("option", { value: "off" }, "Off (default)"),
-  el("option", { value: "ask" }, "Ask each time"),
-  el("option", { value: "block" }, "Block"));
-  executionReview.value = currentReview;
   return [
     pageHeading("PROTECTION", "File protection", "Choose which files an agent should ask about or leave alone.",
       button("Protect a path", ruleDialog, { variant: "primary", symbol: "plus" })),
@@ -1562,12 +1543,7 @@ async function protectionPage() {
           button("Choose a path", ruleDialog, { symbol: "plus" })),
       starter.applied && starter.available > 0 && button("Restore missing starter rules", async () => {
         await perform(() => api("/protection/starter", { method: "POST", body: {} }), "Missing starter rules restored"); render();
-      }, { variant: "quiet", disabled: !connected.length }),
-      el("details", { class: "starter-rules" },
-        el("summary", {}, "Advanced: command approvals"),
-        el("p", { class: "small muted" },
-          "File rules check supported file tools. Command review is separate: turn it on to ask about, or block, shell commands and unrecognized tools. Off keeps the agent’s own permissions and supported credential-output checks."),
-        selectControl(executionReview))),
+      }, { variant: "quiet", disabled: !connected.length })),
     card("Blocks and approvals", "Recent blocked operations and approval requests.",
       interventions.length ? el("div", {}, ...interventions.map(item => el("div", { class: "activity-row protection-event" },
         icon(item.decision === "deny" ? "shield" : "activity"),

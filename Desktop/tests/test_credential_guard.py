@@ -247,14 +247,15 @@ def test_modified_opencode_plugin_is_not_overwritten_or_deleted(runtime):
     assert target.read_text() == changed
 
 
-def test_only_hook_capability_can_request_a_native_file_approval(client, owner, runtime):
-    runtime.change_policy(strict_execution=True)
+def test_only_hook_capability_can_request_a_native_file_approval(client, owner, runtime, tmp_path):
+    protected = tmp_path / "approval.txt"
+    runtime.change_policy(add={"path": str(protected), "action": "ask", "kind": "file"})
     body = {
         "harness": "codex",
         "event": {
             "tool_name": "exec_command",
-            "tool_input": {"cmd": "git status"},
-            "cwd": str(Path.home()),
+            "tool_input": {"cmd": "cat " + str(protected)},
+            "cwd": str(tmp_path),
         },
     }
     assert client.post("/api/hooks/approve", json=body, headers=owner).status_code == 401
@@ -267,11 +268,12 @@ def test_only_hook_capability_can_request_a_native_file_approval(client, owner, 
     assert runtime.native.calls[-1][0] == "approve_tool"
 
 
-def test_native_approval_cannot_override_a_new_block_policy(client, runtime, monkeypatch):
-    runtime.change_policy(strict_execution=True)
+def test_native_approval_cannot_override_a_new_block_policy(client, runtime, monkeypatch, tmp_path):
+    protected = tmp_path / "approval.txt"
+    runtime.change_policy(add={"path": str(protected), "action": "ask", "kind": "file"})
 
     def change_policy(_operation, _arguments, timeout=30):
-        runtime.change_policy(opaque_tools="block")
+        runtime.change_policy(add={"path": str(protected), "action": "block", "kind": "file"})
         return {"allowed": True}
 
     monkeypatch.setattr(runtime.native, "call", change_policy)
@@ -282,12 +284,12 @@ def test_native_approval_cannot_override_a_new_block_policy(client, runtime, mon
             "harness": "opencode",
             "event": {
                 "tool_name": "bash",
-                "tool_input": {"command": "git status"},
-                "cwd": str(Path.home()),
+                "tool_input": {"command": "cat " + str(protected)},
+                "cwd": str(tmp_path),
             },
         },
     )
-    assert response.json() == {"allowed": False, "reason_code": "execution_policy"}
+    assert response.json() == {"allowed": False, "reason_code": "protected_path"}
 
 
 def test_credential_in_approval_arguments_never_reaches_native_dialog(client, runtime):

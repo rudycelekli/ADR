@@ -16,7 +16,6 @@ DEFAULT_SETTINGS = {
     "interval_seconds": CAPTURE_INTERVAL_SECONDS[0],
     "history_days": 14,
     "protection_enabled": True,
-    "opaque_tools": "ask",
     "inventory_enabled": False,
     "onboarding_complete": False,
 }

@@ -33,8 +33,6 @@ static const char *denial_reason(const char *decision) {
      * free-form message into the harness's JSON response. */
     if (strcmp(decision, "deny:protected_path") == 0)
         return "ADR blocked access to a protected file or configuration.";
-    if (strcmp(decision, "deny:execution_policy") == 0)
-        return "ADR's strict execution policy blocks this command or unrecognized tool.";
     if (strcmp(decision, "deny:approval_denied") == 0)
         return "This operation was denied in ADR's approval dialog.";
     if (strcmp(decision, "deny:approval_expired") == 0)

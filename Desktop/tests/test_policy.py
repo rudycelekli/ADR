@@ -23,7 +23,6 @@ def policy(path, action="block", kind="directory", **options):
     return {
         "version": 1,
         "enabled": True,
-        "opaque_tools": "ask",
         "rules": [{"id": "test-rule", "path": str(path), "action": action, "kind": kind, "label": "Private"}],
         "control_paths": [],
         **options,
@@ -132,12 +131,14 @@ def test_recursive_search_of_ancestor_is_checked(tmp_path, tool):
 
 
 @pytest.mark.parametrize("tool", ["Bash", "mcp__unknown__read", "Agent", "apply_patch"])
-def test_unclassified_execution_review_is_opt_in(tmp_path, tool):
-    assert evaluate(event(tool=tool, command="opaque"), "claude", policy(tmp_path)).decision == "pass"
-    assert evaluate(
-        event(tool=tool, command="opaque"), "claude", policy(tmp_path, strict_execution=True)
-    ).decision == "ask"
-    assert evaluate(event(tool=tool), "claude", policy(tmp_path, opaque_tools="block")).decision == "deny"
+@pytest.mark.parametrize("legacy", [
+    {}, {"strict_execution": True, "opaque_tools": "ask"}, {"opaque_tools": "block"},
+])
+def test_commands_and_unknown_tools_without_a_matching_rule_pass(tmp_path, tool, legacy):
+    # A stale offline policy from an earlier preview must not prompt or block.
+    snapshot = policy(tmp_path, **legacy)
+    assert evaluate(event(tool=tool, command="opaque"), "claude", snapshot).decision == "pass"
+
 
 @pytest.mark.parametrize("tool", ["Bash", "exec_command", "mcp__docs__search"])
 def test_control_paths_do_not_enable_blanket_approvals(tmp_path, tool):
@@ -150,45 +151,32 @@ def test_control_paths_do_not_enable_blanket_approvals(tmp_path, tool):
     assert result.paths == []
 
 
-@pytest.mark.parametrize("tool", ["collaborationsend_message", "collaboration.list_agents"])
-def test_known_non_file_coordination_does_not_prompt_even_in_strict_mode(tmp_path, tool):
-    result = evaluate(event(tool=tool), "codex", policy(tmp_path, strict_execution=True))
-    assert result.decision == "pass"
-
-
-def test_explicit_strict_setting_overrides_legacy_mode_without_weakening_paths(tmp_path):
-    snapshot = policy(tmp_path / "private", opaque_tools="block", strict_execution=False)
-    assert evaluate(event(tool="Bash"), "codex", snapshot).decision == "pass"
-    assert evaluate(event(tmp_path / "private" / "file"), "codex", snapshot).decision == "deny"
-
-
-@pytest.mark.parametrize("legacy", ["ask", "block"])
-def test_saved_policy_migration_preserves_rules_and_explicit_block(runtime, legacy):
+@pytest.mark.parametrize("legacy", [
+    {"opaque_tools": "ask"},
+    {"opaque_tools": "block"},
+    {"opaque_tools": "ask", "strict_execution": True},
+    {"opaque_tools": "block", "strict_execution": False},
+])
+def test_saved_command_review_setting_is_removed_and_rules_kept(runtime, legacy):
     runtime.change_policy(add={"path": "/example/private", "action": "block", "kind": "directory"})
-    snapshot = {**runtime.policy, "opaque_tools": legacy}
-    snapshot.pop("strict_execution")
+    snapshot = {**runtime.policy, **legacy}
     atomic_json(runtime.state_dir / "policy.json", snapshot)
     migrated = runtime._load_policy()
-    assert migrated["strict_execution"] is (legacy == "block")
-    assert migrated["opaque_tools"] == legacy
+    assert "strict_execution" not in migrated
+    assert "opaque_tools" not in migrated
     assert migrated["rules"] == snapshot["rules"]
     assert migrated["revision"] != snapshot["revision"]
 
 
-def test_strict_review_is_off_for_new_profiles_and_remains_an_owner_choice(client, owner, runtime):
-    assert runtime.policy["strict_execution"] is False
-    assert client.patch("/api/protection", json={"strict_execution": True}).status_code == 401
-    assert client.patch(
-        "/api/protection", headers=owner, json={"strict_execution": "false"}
-    ).status_code == 422
-    assert client.patch(
-        "/api/protection", headers=owner, json={"strict_execution": True}
-    ).status_code == 200
-    assert runtime._load_policy()["strict_execution"] is True
-    assert client.patch(
-        "/api/protection", headers=owner, json={"strict_execution": False}
-    ).status_code == 200
-    assert runtime._load_policy()["strict_execution"] is False
+def test_protection_settings_only_pause_or_resume_file_rules(client, owner, runtime):
+    assert "strict_execution" not in runtime.policy
+    for removed in ({"strict_execution": True}, {"opaque_tools": "ask"}, {"opaque_tools": "block"}):
+        assert client.patch("/api/protection", headers=owner, json=removed).status_code == 422
+    assert client.patch("/api/protection", json={"enabled": False}).status_code == 401
+    assert client.patch("/api/protection", headers=owner, json={"enabled": False}).status_code == 200
+    assert runtime._load_policy()["enabled"] is False
+    latest = runtime.store.rows("SELECT details FROM audit ORDER BY id DESC LIMIT 1")[0]
+    assert json.loads(latest["details"]) == {"enabled": False}
 
 
 def test_pausing_custom_rules_does_not_weaken_control_files(tmp_path):

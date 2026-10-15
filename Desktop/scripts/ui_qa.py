@@ -697,7 +697,7 @@ def check_dropdowns_and_protection_activity(page, runtime, screenshots):
     # the user's controls. A subsequent block must still refresh the activity.
     # Let the normal status poll observe the initial seeded events.
     page.wait_for_timeout(4500)
-    advanced = page.locator(".starter-rules > summary").filter(has_text="Advanced: command approvals")
+    advanced = page.locator(".starter-rules > summary").filter(has_text="Starter rules (")
     advanced.click()
     summary_node = advanced.element_handle()
     event("pass", "No protected path matched", "Another routine read")

@@ -4,7 +4,6 @@ from dataclasses import asdict, dataclass, field
 
 DENIAL_REASONS = {
     "protected_path": "ADR blocked access to a protected file or configuration.",
-    "execution_policy": "ADR's strict execution policy blocks this command or unrecognized tool.",
     "approval_denied": "This operation was denied in ADR's approval dialog.",
     "approval_expired": "ADR's approval request expired. Retry the operation if it is still needed.",
     "approval_queue_full": "ADR's approval queue is full. Finish pending approvals, then retry.",

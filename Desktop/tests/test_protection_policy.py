@@ -8,8 +8,6 @@ def test_protection_decides_from_the_operation_alone(tmp_path):
     snapshot = {
         "version": 1,
         "enabled": True,
-        "strict_execution": False,
-        "opaque_tools": "ask",
         "rules": [{"id": "fixture", "path": str(tmp_path / "secret.txt"), "kind": "file",
                    "action": "block", "label": "Protected"}],
         "control_paths": [],

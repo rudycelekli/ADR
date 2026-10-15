@@ -156,7 +156,7 @@ def check_threats(page, runtime, screenshots):
     """Exercise the real UI and owner endpoints against seed_threats fixtures."""
     original_file_policy = {
         key: copy.deepcopy(runtime.policy[key])
-        for key in ("enabled", "rules", "opaque_tools", "strict_execution")
+        for key in ("enabled", "rules")
     }
     _open(page)
     page.reload()

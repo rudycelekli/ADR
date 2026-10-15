@@ -89,12 +89,12 @@ not bypass an agent's own permission system.
 
 Checks cover direct paths, symlink resolution, protected-file hard links,
 conservative macOS/Windows case matching, and recursive searches that include
-a protected descendant. Strict execution review is a separate, explicit opt-in:
-shell execution and unclassified tools pass through to the harness's own
-permissions by default. In strict mode they ask or block. An empty protected-path
-match is not presented as evidence that a command cannot access sensitive files.
-This default does not claim to mediate arbitrary command or third-party-tool
-filesystem access. Use strict review or an OS sandbox for that threat model.
+a protected descendant. Shell execution and unclassified tools that match no
+rule pass through to the harness's own permissions; ADR has no blanket command
+approval mode. An empty protected-path match is not presented as evidence that
+a command cannot access sensitive files. ADR does not claim to mediate arbitrary
+command or third-party-tool filesystem access. Use an OS sandbox for that
+threat model.
 
 The standalone guardian emits native deny/withhold output if the core fails,
 is missing, has invalid output, or exceeds its four-second evaluation budget.

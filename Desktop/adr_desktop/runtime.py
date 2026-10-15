@@ -85,17 +85,14 @@ class Runtime:
                 "version": 1,
                 "revision": new_id(),
                 "enabled": True,
-                "opaque_tools": "ask",
-                "strict_execution": False,
                 "rules": [],
             }
-        if "strict_execution" not in snapshot:
-            # Older previews asked for every unknown tool implicitly. Make that
-            # behavior opt-in, while preserving an explicitly configured Block.
-            snapshot["strict_execution"] = snapshot.get("opaque_tools") == "block"
+        if "strict_execution" in snapshot or "opaque_tools" in snapshot:
+            # Earlier previews could ask about or block every command and
+            # unknown tool. Protection now decides only from file rules.
+            snapshot.pop("strict_execution", None)
+            snapshot.pop("opaque_tools", None)
             snapshot["revision"] = new_id()
-        if not isinstance(snapshot["strict_execution"], bool):
-            raise ValueError("The saved strict execution setting is invalid")
         previous_threats = snapshot.get("threats")
         snapshot["threats"], self.threat_feed_warning = initialize_threats(previous_threats)
         if snapshot["threats"] != previous_threats:
@@ -133,7 +130,7 @@ class Runtime:
         atomic_json(path, snapshot)
         return snapshot
 
-    def change_policy(self, *, add=None, delete=None, enabled=None, opaque_tools=None, strict_execution=None):
+    def change_policy(self, *, add=None, delete=None, enabled=None):
         with self.policy_lock:
             updated = json.loads(json.dumps(self.policy))
             if add:
@@ -147,18 +144,10 @@ class Runtime:
                 updated["rules"] = [rule for rule in updated["rules"] if rule["id"] != delete]
             if enabled is not None:
                 updated["enabled"] = bool(enabled)
-            if opaque_tools is not None:
-                if opaque_tools not in ("ask", "block"):
-                    raise ValueError("Unclassified execution tools must ask or block")
-                updated["opaque_tools"] = opaque_tools
-                # An explicit API choice of Ask/Block opts into execution review.
-                updated["strict_execution"] = True
-            if strict_execution is not None:
-                if not isinstance(strict_execution, bool):
-                    raise ValueError("Strict execution review must be enabled or disabled")
-                updated["strict_execution"] = strict_execution
+            changed = self.policy.get("enabled") != updated.get("enabled")
             self._publish_policy(updated)
-        self.store.audit("file_policy_changed", "File protection rules updated")
+        details = {"enabled": updated["enabled"]} if changed else None
+        self.store.audit("file_policy_changed", "File protection rules updated", details)
         return updated
 
     def _publish_policy(self, updated):
@@ -393,6 +382,7 @@ class Runtime:
         self.broker.expire()
         settings = self.store.settings()
         settings.pop("inventory_snapshot", None)
+        settings.pop("opaque_tools", None)  # Stale row from removed command review.
         try:
             bridge_ready = (
                 read_private_json(self.state_dir / "guard-version.json").get("version") == GUARD_VERSION
@@ -432,8 +422,6 @@ class Runtime:
             "settings": {
                 **settings,
                 "protection_enabled": self.policy["enabled"],
-                "opaque_tools": self.policy["opaque_tools"],
-                "strict_execution": self.policy["strict_execution"],
             },
             "protection": {
                 "enabled": self.policy["enabled"],
