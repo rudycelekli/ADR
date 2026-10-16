@@ -1,0 +1,2 @@
+# Scanner allowlist: changes need review from repo admins (requested by OSPO).
+/.gitleaks.toml @cmvan @bozbas
