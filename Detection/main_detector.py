@@ -27,6 +27,7 @@ from guardrail.adr_agent.adr_baseline import ADRBaseline
 
 # Import the baseline detectors
 from guardrail.llamafirewall_agent.llamafirewall_baseline import LlamaFirewallBaseline
+from guardrail.jev_agent.jev_baseline import JevBaseline
 from run_manifest import collect_run_manifest, collect_source_metadata, read_text_with_sha256
 
 
@@ -828,7 +829,7 @@ def main():
     parser.add_argument(
         "--detector",
         default="adr",
-        choices=["llamafirewall", "adr"],
+        choices=["llamafirewall", "adr", "jev"],
         help="Detector to use for analysis (default: adr — ADR dual-agent)",
     )
     parser.add_argument(
@@ -953,6 +954,14 @@ def main():
             print(f"   🔍 Triage Model: {config_info['triage_model']}")
             print(f"   🧠 Reasoning Model: {config_info['reasoning_model']}")
             print(f"   🔧 Discovered MCP Servers: {', '.join(config_info['mcp_servers'])}")
+    elif args.detector == "jev":
+        jev_config = config_data.get("jev", {}) if config_data else {}
+        model_name = jev_config.get("model", "~typesafe/jev-latest")
+        detector = JevBaseline(model_name=model_name, **jev_config)
+        if detector.is_available():
+            print(f"   🤖 Model: {model_name}")
+            mode_str = "Context-Assisted" if getattr(detector, "enable_context_assistant", True) else "Raw System 1 (0-FP Mode)"
+            print(f"   🛡️ Type: System One Decision Engine ({mode_str})")
     else:
         raise ValueError(f"Unknown detector: {args.detector}")
 
@@ -963,6 +972,8 @@ def main():
                 "💡 ADR (adr) requires: ANTHROPIC_API_KEY, OPENAI_API_KEY, and Claude CLI (`claude` on PATH)"
             )
             print("💡 For keyless smoke tests, use: --detector llamafirewall")
+        elif args.detector == "jev":
+            print("💡 Jev requires: JEV_API_KEY or OPENROUTER_API_KEY environment variable")
         sys.exit(1)
     else:
         if args.detector != "adr":  # ADR already printed detailed info above

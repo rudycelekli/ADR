@@ -38,3 +38,9 @@ adr_framework:
 # Detection Analysis Configuration
 detection:
   max_concurrent: 5
+
+jev:
+  model: "~typesafe/jev-latest"
+  threshold: 0.5
+  timeout: 30
+  enable_context_assistant: true
