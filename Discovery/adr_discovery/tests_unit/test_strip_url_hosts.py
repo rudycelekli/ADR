@@ -43,3 +43,17 @@ def test_ipv6_and_templated_servers_are_declared_not_errors(world):
     assert result.errors == ()
     urls = {d.name: d.url for d in result.declarations}
     assert urls == {"v6": "http://[::1]:8080/mcp", "templated": REDACTED}
+
+
+def test_judge_reads_the_whole_ipv6_host_as_the_destination():
+    from adr_discovery.contracts.evidence import Band, Channel
+    from adr_discovery.contracts.records import Asset, Declaration, Kind
+    from adr_discovery.judge import judge
+
+    asset = Asset(asset_id="id-v6", kind=Kind.MCP_SERVER, name="v6", identity="v6",
+                  catalog_id="v6", confidence=Band("medium", (Channel.CONFIG,)))
+    decl = Declaration(kind=Kind.MCP_SERVER, name="v6", path="/cfg", url="http://[::1]:8080/mcp")
+
+    judged, _ = judge((asset,), {"id-v6": decl})
+
+    assert judged[0].risk.destinations == ("::1",)
